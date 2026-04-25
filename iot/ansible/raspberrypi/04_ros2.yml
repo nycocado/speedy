@@ -1,0 +1,20 @@
+---
+- name: ROS 2 Jazzy (RPi)
+  block:
+    - name: Configurar repositório ROS 2
+      ansible.builtin.shell: |
+        curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+        echo "deb [arch=arm64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu noble main" > /etc/apt/sources.list.d/ros2.list
+      args: { creates: /etc/apt/sources.list.d/ros2.list }
+
+    - name: Instalar base do ROS 2 e Foxglove Bridge
+      ansible.builtin.apt:
+        name: [ros-jazzy-ros-base, ros-jazzy-foxglove-bridge, ros-dev-tools, ros-jazzy-joy]
+        update_cache: yes
+
+    - name: Configurar rosdep
+      ansible.builtin.shell: |
+        [ -f /etc/ros/rosdep/sources.list.d/20-default.list ] || rosdep init
+        rosdep update
+      become: no
+      ignore_errors: yes

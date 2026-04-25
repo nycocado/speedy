@@ -1,0 +1,20 @@
+---
+- name: 08 - Configurar Auto-Start (Systemd)
+  block:
+    - name: Copiar ficheiro de servico do Speedy
+      ansible.builtin.template:
+        src: ../files/speedy.service
+        dest: /etc/systemd/system/speedy.service
+        mode: '0644'
+      register: service_file
+
+    - name: Recarregar configuracoes do Systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+      when: service_file.changed
+
+    - name: Garantir que o servico esta ativo e inicia no boot
+      ansible.builtin.systemd:
+        name: speedy
+        enabled: yes
+        state: started

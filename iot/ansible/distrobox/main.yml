@@ -1,0 +1,9 @@
+---
+- name: Configuração Interna do Distrobox (Software e Shell)
+  hosts: host
+  tasks:
+    - name: "Passo 1: Shell e Dotfiles"
+      ansible.builtin.include_tasks: 01_shell.yml
+
+    - name: "Passo 2: ROS 2 Desktop e Foxglove"
+      ansible.builtin.include_tasks: 02_ros2_desktop.yml

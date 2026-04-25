@@ -1,0 +1,13 @@
+---
+- name: 06 - Ferramentas Adicionais de Desenvolvimento
+  block:
+    - name: Instalar ferramentas de monitoramento e performance
+      ansible.builtin.apt:
+        name:
+          - s-tui
+          - stress
+          - htop
+          - nvtop
+          - tmux
+          - nano
+        state: present

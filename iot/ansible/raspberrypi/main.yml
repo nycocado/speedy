@@ -1,0 +1,21 @@
+---
+- name: Setup do Robô Speedy (Raspberry Pi 4)
+  hosts: robots
+  become: yes
+  tasks:
+    - name: "Passo 1: Sistema Base"
+      ansible.builtin.include_tasks: 01_base.yml
+    - name: "Passo 2: Rede e Acesso"
+      ansible.builtin.include_tasks: 02_network.yml
+    - name: "Passo 3: Shell e Zsh"
+      ansible.builtin.include_tasks: 03_shell.yml
+    - name: "Passo 4: ROS 2 e Foxglove"
+      ansible.builtin.include_tasks: 04_ros2.yml
+    - name: "Passo 5: Hardware e GUI"
+      ansible.builtin.include_tasks: 05_hardware.yml
+    - name: "Passo 6: Pacotes Adicionais"
+      ansible.builtin.include_tasks: 06_extra_packages.yml
+    - name: "Passo 7: Workspace e Build"
+      ansible.builtin.include_tasks: 07_workspace.yml
+    - name: "Passo 8: Auto-Start (Servico)"
+      ansible.builtin.include_tasks: 08_service.yml
