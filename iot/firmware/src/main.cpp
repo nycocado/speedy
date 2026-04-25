@@ -1,78 +1,104 @@
 #include <Arduino.h>
-#include <Bluepad32.h>
+#include <Constants.h>
+#include <DriveControl.h>
+#include <Gamepad.h>
+#include <MotorController.h>
+#include <ROSComms.h>
+#include <ROSCore.h>
+#include <ROSManager.h>
+#include <SteeringController.h>
+#include <SystemState.h>
 
-// Array para armazenar os controles conectados
-ControllerPtr myControllers[BP32_MAX_GAMEPADS];
+#include <micro_ros_platformio.h>
 
-void onConnectedController(ControllerPtr ctl) {
-    bool foundEmptySlot = false;
-    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        if (myControllers[i] == nullptr) {
-            Serial.printf(">>> SUCESSO: Machenike G5 Pro (ou similar) conectado no slot %d <<<\n", i);
-            ControllerProperties properties = ctl->getProperties();
-            Serial.printf("Vendor ID: %04x, Product ID: %04x\n", properties.vendor_id, properties.product_id);
-            myControllers[i] = ctl;
-            foundEmptySlot = true;
-            break;
+// --- Estruturas de Configuração ---
+
+// Parâmetros do motor de tração baseados nas constantes do projeto
+MotorConfig motorCfg = {
+    Config::Motor::FREQUENCY,
+    Config::Motor::RESOLUTION,
+    Config::Motor::DEADBAND_MS,
+    Config::Motor::MIN_EFFORT,
+    Config::Motor::INVERT_DIRECTION};
+
+// Mapeamento do gamepad baseado nas constantes do projeto
+GamepadConfig gamepadCfg = {
+    Config::Gamepad::AXIS_STEERING,
+    Config::Gamepad::AXIS_THROTTLE,
+    Config::Gamepad::AXIS_REVERSE,
+    Config::Gamepad::BTN_BRAKE,
+    Config::Gamepad::BTN_MANUAL,
+    Config::Gamepad::BTN_AUTO,
+    Config::Gamepad::DEADZONE};
+
+// Parâmetros do servo de direção baseados nas constantes do projeto
+SteeringConfig steeringCfg = {
+    Config::Steering::FREQUENCY,
+    Config::Steering::MIN_PULSE_US,
+    Config::Steering::MAX_PULSE_US,
+    Config::Steering::CENTER_PULSE_US,
+    Config::Steering::MAX_DEFLECTION_US,
+    Config::Steering::INVERT_DIRECTION,
+    Config::Steering::MAX_SPEED_US_PER_SEC};
+
+// --- Instâncias de Hardware e Lógica ---
+
+SteeringController steering(Pins::SERVO, steeringCfg);
+MotorController
+    motor(Pins::MOTOR_EN, Pins::MOTOR_LPWM, Pins::MOTOR_RPWM, motorCfg);
+
+ROSCore rosCore;
+Gamepad gamepad(gamepadCfg);
+DriveControl driveControl(motor, steering);
+
+TaskHandle_t RosTaskHandle = NULL;
+
+/**
+ * @brief Task dedicada ao processamento de mensagens ROS e controle manual.
+ */
+void rosTask(void* pvParameters)
+{
+    for (;;)
+    {
+        // Executa a máquina de estados do ROS
+        ROSManager::manageConnection(rosCore, motor, driveControl, gamepad);
+
+        // Atualiza a intenção de movimento manual se o modo estiver ativo
+        if (driveControl.getMode() == DriveMode::MANUAL)
+        {
+            driveControl.handleManualInput(gamepad);
         }
-    }
-    if (!foundEmptySlot) {
-        Serial.println("AVISO: Controle conectou, mas nao ha mais slots disponiveis.");
-    }
-}
 
-void onDisconnectedController(ControllerPtr ctl) {
-    for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
-        if (myControllers[i] == ctl) {
-            Serial.printf(">>> AVISO: Controle desconectado do slot %d <<<\n", i);
-            myControllers[i] = nullptr;
-            break;
-        }
+        // Executa a física contínua do chassi (ex: limites mecânicos, slew
+        // rate)
+        driveControl.update();
+
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
-void processGamepad(ControllerPtr ctl) {
-    if (ctl->a()) Serial.println("Acao: Botao A Pressionado!");
-    if (ctl->b()) Serial.println("Acao: Botao B Pressionado!");
-    if (ctl->x()) Serial.println("Acao: Botao X Pressionado!");
-    if (ctl->y()) Serial.println("Acao: Botao Y Pressionado!");
+// --- Funções Principais ---
 
-    if (ctl->brake() > 0)    Serial.printf("Gatilho Esquerdo (Freio): %d\n", ctl->brake());
-    if (ctl->throttle() > 0) Serial.printf("Gatilho Direito (Acelerador): %d\n", ctl->throttle());
+void setup()
+{
+    // Inicializa transporte micro-ROS via porta Serial configurada no
+    // PlatformIO
+    Serial.begin(921600);
+    set_microros_serial_transports(Serial);
 
-    if (abs(ctl->axisY()) > 50 || abs(ctl->axisX()) > 50) {
-        Serial.printf("Joystick Esquerdo -> Eixo X: %d, Eixo Y: %d\n", ctl->axisX(), ctl->axisY());
-    }
+    // Inicialização do Hardware
+    motor.begin();
+    steering.begin();
+    motor.brake();
+
+    // Criação da task de controle no Core 1 com prioridade 5
+    xTaskCreatePinnedToCore(
+        rosTask, "RosTask", 8192, NULL, 5, &RosTaskHandle, 1
+    );
 }
 
-void processControllers() {
-    for (auto myController : myControllers) {
-        if (myController && myController->isConnected() && myController->hasData()) {
-            if (myController->isGamepad()) {
-                processGamepad(myController);
-            }
-        }
-    }
-}
-
-void setup() {
-    Serial.begin(115200);
-    delay(2000);
-    
-    Serial.println("==================================================");
-    Serial.println("   SPEEDY: Sistema de Controle Ativado (v2 + BP32) ");
-    Serial.println("==================================================");
-    Serial.println("Aguardando conexao do Machenike G5 Pro...");
-
-    String fv = BP32.firmwareVersion();
-    Serial.print("Motor Bluepad32 Versao: ");
-    Serial.println(fv);
-
-    BP32.setup(&onConnectedController, &onDisconnectedController);
-}
-
-void loop() {
-    BP32.update();
-    processControllers();
-    delay(50);
+void loop()
+{
+    // O loop principal permanece em standby devido à task dedicada
+    vTaskDelay(pdMS_TO_TICKS(100));
 }
