@@ -1,0 +1,11 @@
+---
+- name: Rede (RPi)
+  block:
+    - name: Instalar avahi e ssh
+      ansible.builtin.apt: { name: [avahi-daemon, ssh], state: present }
+    - name: Configurar interface eth0
+      ansible.builtin.copy: { src: ../files/99-eth0.yaml, dest: /etc/netplan/99-eth0.yaml }
+      register: net_apply
+    - name: Aplicar Netplan
+      ansible.builtin.command: netplan apply
+      when: net_apply.changed

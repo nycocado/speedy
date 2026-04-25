@@ -1,0 +1,17 @@
+[Unit]
+Description=Servico de Inicializacao do Robo Speedy (ROS 2)
+After=network.target
+
+[Service]
+Type=simple
+User={{ ansible_user }}
+Group={{ ansible_user }}
+# O Systemd nao carrega o .zshrc, por isso precisamos de uma "ponte" para o ROS 2
+ExecStart=/usr/bin/zsh -c "source /opt/ros/jazzy/setup.zsh && source /home/{{ ansible_user }}/speedy_ws/install/setup.zsh && export ROS_DOMAIN_ID=0 && export RMW_IMPLEMENTATION=rmw_fastrtps_cpp && ros2 launch speedy_bringup speedy.launch.py"
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

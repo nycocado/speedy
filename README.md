@@ -45,16 +45,56 @@ O projeto está organizado nas seguintes pastas:
 - `CircularBuffer`
 - `ArduinoJson`
 
-## Pré-requisitos (Host - Fedora)
+## Pré-requisitos do Sistema Host
 
-Para compilar o firmware do ESP32 e o ambiente micro-ROS:
+O projeto utiliza **Ansible** para garantir um provisionamento idempotente, limpo e reprodutível, tanto para o ambiente de desenvolvimento local (via Distrobox) quanto para o robô físico (Raspberry Pi 4).
+
+O sistema anfitrião deve dispor das seguintes dependências instaladas e operacionais (a instalação e configuração destas ferramentas no sistema operativo anfitrião são da inteira responsabilidade do utilizador):
+
+- **Ansible**: Motor de automação e provisionamento.
+- **Python 3**: Interpretador necessário para a execução local do Ansible (geralmente instalado por defeito na maioria das distribuições Linux).
+- **sshpass**: Necessário para a autenticação inicial por palavra-passe via SSH (antes da troca de chaves).
+- **Podman** (ou Docker): Motor de contentores utilizado para hospedar o ambiente de desenvolvimento.
+- **Distrobox**: Utilitário para gerir o contentor de desenvolvimento integrado ao sistema.
+
+## Como Executar a Automação (Ansible)
+
+A configuração está dividida em três frentes: Host (Seu PC), Distrobox (Seu ambiente de dev) e Robots (O hardware real).
+
+1. Navegue até a pasta de automação:
 
 ```bash
-# Instalação de ferramentas de build e compiladores C++
-sudo dnf install -y cmake gcc-c++ python3-pip python3-devel git
+cd iot/ansible
 ```
 
-## 🔌 Configuração do ESP32-S3 (N16R8)
+1. **Preparar o seu PC (Host):**
+Instala pacotes do sistema, configura o firewall e a partilha de rede, e cria o container base.
+
+```bash
+ansible-playbook -i inventory.ini host/main.yml -K
+```
+
+*(O `-K` pedirá a sua senha de `sudo` para permissões de sistema).*
+
+1. **Configurar o seu Ambiente de Dev (Distrobox):**
+Configura o Zsh, Powerlevel10k, ROS 2 Desktop, Foxglove e compila o código dentro do seu container isolado.
+
+```bash
+ansible-playbook -i inventory.ini distrobox/main.yml
+```
+
+*Para entrar no seu ambiente de dev após a instalação, use: `distrobox enter speedy-dev`*
+
+1. **Provisionar o Robô Físico (Raspberry Pi):**
+*(Certifique-se que o Pi está ligado à rede ou cabo e verifique o IP/Hostname no ficheiro `inventory.ini`)*
+
+```bash
+ansible-playbook -i inventory.ini raspberrypi/main.yml -k -k
+```
+
+*(O `-k` pedirá a senha SSH do utilizador no Raspberry Pi).*
+
+## Configuração do ESP32-S3 (N16R8)
 
 O projeto utiliza flags específicas no `platformio.ini` para o hardware N16R8:
 

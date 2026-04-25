@@ -1,0 +1,69 @@
+---
+- name: Setup da Máquina Host (Física)
+  hosts: host
+  tasks:
+    - name: "Passo 1: Permissões de Hardware"
+      block:
+        - name: Adicionar utilizador ao grupo dialout (Acesso Serial/ESP32)
+          ansible.builtin.user:
+            name: "{{ ansible_user_id }}"
+            groups: dialout
+            append: yes
+          become: yes
+
+    - name: "Passo 2: Rede e Firewall"
+      block:
+        - name: Habilitar serviços de rede
+          ansible.builtin.service:
+            name: "{{ item }}"
+            state: started
+            enabled: yes
+          loop: [avahi-daemon, sshd]
+          become: yes
+
+        - name: Regras de firewall
+          ansible.posix.firewalld:
+            service: "{{ item }}"
+            state: enabled
+            permanent: yes
+            immediate: yes
+          loop: [mdns, ssh]
+          become: yes
+          ignore_errors: yes
+
+        - name: Compartilhamento IPv4 (eth0)
+          ansible.builtin.shell: nmcli con modify "Wired connection 1" ipv4.method shared
+          become: yes
+          ignore_errors: yes
+
+    - name: "Passo 3: Criação do Distrobox (Assemble)"
+      block:
+        - name: Garantir diretórios e copiar .ini
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: '0755'
+          loop:
+            - "{{ ansible_user_dir }}/.config/distrobox"
+            - "{{ ansible_user_dir }}/distrobox/speedy-home"
+
+        - name: Sincronizar base do distrobox.ini
+          ansible.builtin.copy:
+            src: "../files/distrobox.ini"
+            dest: "{{ ansible_user_dir }}/.config/distrobox/speedy_dev.ini"
+            mode: '0644'
+
+        - name: Ajustar home isolada no distrobox.ini
+          ansible.builtin.ini_file:
+            path: "{{ ansible_user_dir }}/.config/distrobox/speedy_dev.ini"
+            section: "speedy-dev"
+            option: "home"
+            value: "{{ ansible_user_dir }}/distrobox/speedy-home"
+
+        - name: Executar distrobox-assemble create
+          ansible.builtin.command: >-
+            distrobox-assemble create
+            --replace
+            --file {{ ansible_user_dir }}/.config/distrobox/speedy_dev.ini
+          register: db_out
+          changed_when: "'creating' in db_out.stdout or 'replacing' in db_out.stdout"

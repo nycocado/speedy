@@ -123,6 +123,14 @@ if [ -f /opt/ros/jazzy/setup.zsh ]; then
     source /opt/ros/jazzy/setup.zsh
 fi
 
+if [ -f ~/speedy_ws/install/setup.zsh ]; then
+    source ~/speedy_ws/install/setup.zsh
+fi
+
+export ROS_DOMAIN_ID=0
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
+
 if command -v fastfetch >/dev/null; then
-    fastfetch --pipe false -c examples/14
+    fastfetch --pipe false -c examples/14 && printf "\n"
 fi

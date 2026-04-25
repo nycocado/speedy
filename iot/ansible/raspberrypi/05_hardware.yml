@@ -1,0 +1,18 @@
+---
+- name: Hardware e GUI (RPi)
+  block:
+    - name: Configurar grupos de usuários
+      ansible.builtin.user: { name: "{{ ansible_user }}", groups: "dialout,video,i2c", append: yes }
+
+    - name: Instalar ambiente desktop (opcional)
+      ansible.builtin.apt: { name: xubuntu-desktop, state: present }
+      when: install_gui | default(false)
+
+    - name: Configurar inicialização XFCE
+      ansible.builtin.copy:
+        dest: "/home/{{ ansible_user }}/.xinitrc"
+        content: "exec startxfce4"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
+      when: install_gui | default(false)

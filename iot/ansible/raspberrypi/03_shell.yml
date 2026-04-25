@@ -1,0 +1,26 @@
+---
+- name: Shell e Dotfiles (RPi)
+  block:
+    - name: Instalar dependências shell
+      ansible.builtin.apt: { name: [zsh, git, curl, wget, psmisc], state: present }
+    - name: Instalar Oh My Zsh
+      ansible.builtin.shell: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+      args: { creates: "/home/{{ ansible_user }}/.oh-my-zsh" }
+      become: no
+    - name: Clonar plugins e temas
+      ansible.builtin.git:
+        repo: "{{ item.repo }}"
+        dest: "/home/{{ ansible_user }}/.oh-my-zsh/custom/{{ item.path }}"
+        depth: 1
+      loop:
+        - { repo: 'https://github.com/romkatv/powerlevel10k.git', path: 'themes/powerlevel10k' }
+        - { repo: 'https://github.com/zsh-users/zsh-autosuggestions', path: 'plugins/zsh-autosuggestions' }
+        - { repo: 'https://github.com/zsh-users/zsh-syntax-highlighting.git', path: 'plugins/zsh-syntax-highlighting' }
+        - { repo: 'https://github.com/zsh-users/zsh-completions.git', path: 'plugins/zsh-completions' }
+      become: no
+    - name: Sincronizar arquivos de configuração
+      ansible.builtin.copy: { src: "../files/{{ item }}", dest: "/home/{{ ansible_user }}/{{ item }}" }
+      loop: [.zshrc, .p10k.zsh]
+      become: no
+    - name: Configurar shell padrão
+      ansible.builtin.user: { name: "{{ ansible_user }}", shell: /usr/bin/zsh }

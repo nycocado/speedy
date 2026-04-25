@@ -1,0 +1,26 @@
+---
+- name: 07 - Deploy e Build do Workspace ROS 2
+  block:
+    - name: Garantir diretório do workspace
+      ansible.builtin.file:
+        path: "~/speedy_ws/src"
+        state: directory
+        mode: '0755'
+      become: no
+
+    - name: Sincronizar código fonte do software
+      ansible.builtin.synchronize:
+        src: "../../software/src/"
+        dest: "~/speedy_ws/src/"
+        recursive: yes
+        delete: yes
+      become: no
+
+    - name: Compilar workspace com colcon
+      ansible.builtin.shell:
+        cmd: "source /opt/ros/jazzy/setup.zsh && colcon build --symlink-install"
+        executable: /bin/zsh
+        chdir: "~/speedy_ws"
+      become: no
+      register: colcon_build
+      changed_when: "'Finished' in colcon_build.stdout"

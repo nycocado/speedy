@@ -1,0 +1,10 @@
+---
+- name: Sistema Base (RPi)
+  block:
+    - name: Desativar unattended-upgrades
+      ansible.builtin.service: { name: unattended-upgrades, state: stopped, enabled: no }
+      ignore_errors: yes
+    - name: Atualizar pacotes APT
+      ansible.builtin.apt: { update_cache: yes, upgrade: full, autoremove: yes }
+    - name: Instalar rpi-eeprom
+      ansible.builtin.apt: { name: rpi-eeprom, state: present }
