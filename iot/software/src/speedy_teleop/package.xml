@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>speedy_teleop</name>
+  <version>1.0.0</version>
+  <description>Pacote de interface de controle manual (Teleop) e ponte serial.</description>
+  <maintainer email="nycolascanutto@gmail.com">nycocado</maintainer>
+  <license>Proprietary</license>
+
+  <!-- Ferramenta de build necessária para processar este pacote -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dependências de compilação e execução -->
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+
+  <!-- Dependências apenas para execução de testes unitários -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <!-- Declara explicitamente que este é um pacote C++ usando ament_cmake -->
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

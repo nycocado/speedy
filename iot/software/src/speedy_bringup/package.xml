@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>speedy_bringup</name>
+  <version>1.0.0</version>
+  <description>Scripts globais de inicialização do sistema (Micro-ROS, Foxglove, Sensores Base).</description>
+  <maintainer email="nycolascanutto@gmail.com">nycocado</maintainer>
+  <license>Proprietary</license>
+
+  <!-- Ferramenta de build necessária para processar este pacote -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dependências de execução -->
+  <!-- O pacote de bringup não compila código, mas depende em tempo de execução 
+       dos nós que vai lançar para garantir que existam no workspace. -->
+  <exec_depend>micro_ros_agent</exec_depend>
+  <exec_depend>foxglove_bridge</exec_depend>
+  <exec_depend>speedy_teleop</exec_depend>
+
+  <!-- Dependências apenas para execução de testes unitários -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <!-- Declara explicitamente que este é um pacote C++ usando ament_cmake -->
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
