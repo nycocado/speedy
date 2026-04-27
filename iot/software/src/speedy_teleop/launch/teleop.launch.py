@@ -21,7 +21,7 @@ def generate_launch_description():
 
     # Log informativo
     log_msg = LogInfo(
-        msg=f"\n{'='*60}\n  [SPEEDY TELEOP] Inicializando Sistema de Controle Manual...\n  [CONFIG] Autorepeat Ativo (20Hz)\n{'='*60}\n"
+        msg=f"\n{'='*60}\n  [SPEEDY TELEOP] Inicializando Sistema de Controle Manual...\n"
     )
 
     # Nó do Joystick
@@ -32,7 +32,8 @@ def generate_launch_description():
         parameters=[{
             'device_name': 'MACHENIKE G5Pro',
             'deadzone': 0.05,
-            'coalesce_interval_ms': 1
+            'autorepeat_rate': 20.0,
+            'coalesce_interval_ms': 1,
         }],
         respawn=True,
         respawn_delay=1.0,
