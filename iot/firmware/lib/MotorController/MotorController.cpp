@@ -8,7 +8,8 @@ MotorController::MotorController(
 )
     : _pinEn(pinEn), _pinLpwm(pinLpwm), _pinRpwm(pinRpwm), _config(config),
       _maxSpeed(0), _currentDirection(MotorDirection::STOPPED),
-      _deadbandStartTime(0), _inDeadband(false)
+      _deadbandStartTime(0), _inDeadband(false),
+      _kickstartStartTime(0), _isKickstarting(false)
 {
 }
 
@@ -54,18 +55,40 @@ void MotorController::setEffort(float effort)
     {
         brake();
         _inDeadband = false;
+        _isKickstarting = false;
         return;
     }
 
-    // Mapeia o esforço normalizado para a resolução real de PWM do ESP32
-    int16_t speed = (int16_t)(effort * _maxSpeed);
-
     MotorDirection targetDirection =
-        (speed > 0) ? MotorDirection::FORWARD : MotorDirection::REVERSE;
+        (effort > 0) ? MotorDirection::FORWARD : MotorDirection::REVERSE;
+
+    // Lógica de KICKSTART para vencer atrito estático
+    if (_currentDirection == MotorDirection::STOPPED)
+    {
+        _isKickstarting = true;
+        _kickstartStartTime = millis();
+    }
+
+    // Garante que o esforço não seja inferior ao mínimo de sustentação
+    if (abs(effort) < _config.minDriveEffort)
+    {
+        effort = (effort > 0) ? _config.minDriveEffort : -_config.minDriveEffort;
+    }
+
+    if (_isKickstarting)
+    {
+        if (millis() - _kickstartStartTime < _config.kickstartMs)
+        {
+            float kickEffort = (effort > 0) ? _config.kickstartEffort : -_config.kickstartEffort;
+            if (abs(effort) < abs(kickEffort)) effort = kickEffort;
+        }
+        else
+        {
+            _isKickstarting = false;
+        }
+    }
 
     // Gerenciamento de dead-time não-bloqueante na inversão de rotação
-    // O delay de proteção é aplicado apenas na inversão brusca de sentido
-    // (FORWARD <-> REVERSE)
     if (targetDirection != _currentDirection &&
         _currentDirection != MotorDirection::STOPPED)
     {
@@ -95,6 +118,9 @@ void MotorController::setEffort(float effort)
     _currentDirection = targetDirection;
     digitalWrite(_pinEn, HIGH); // Habilita a ponte H
 
+    // Mapeia o esforço normalizado para a resolução real de PWM do ESP32
+    int16_t speed = (int16_t)(effort * _maxSpeed);
+
     // Aplica sinal PWM no canal correspondente ao sentido desejado
     if (_currentDirection == MotorDirection::FORWARD)
     {
@@ -114,6 +140,7 @@ void MotorController::brake()
     // EN ativo com PWM 0 resulta em freio dinâmico na ponte BTS7960
     digitalWrite(_pinEn, HIGH);
     _currentDirection = MotorDirection::STOPPED;
+    _isKickstarting = false;
 }
 
 void MotorController::stop()
@@ -122,6 +149,7 @@ void MotorController::stop()
     // EN inativo desabilita a ponte (motores em roda livre)
     digitalWrite(_pinEn, LOW);
     _currentDirection = MotorDirection::STOPPED;
+    _isKickstarting = false;
 }
 
 void MotorController::_clearPwm()

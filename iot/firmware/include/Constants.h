@@ -36,11 +36,16 @@ namespace Config
         constexpr uint8_t RESOLUTION = 10;
         /** @brief Tempo morto entre inversões de rotação (ms). */
         constexpr uint16_t DEADBAND_MS = 10;
-        /** @brief Esforço mínimo normalizado (0.0 a 1.0) para vencer a inércia
-         * do motor. */
+        /** @brief Esforço mínimo normalizado (0.0 a 1.0) para acionar o motor (Deadzone). */
         constexpr float MIN_EFFORT = 0.05f;
+        /** @brief Esforço mínimo para manter o motor em movimento (Sustentação). */
+        constexpr float MIN_DRIVE_EFFORT = 0.35f;
         /** @brief Inverter o sentido de rotação do motor (true/false). */
         constexpr bool INVERT_DIRECTION = false;
+        /** @brief Tempo do pulso inicial para vencer a inércia (ms). */
+        constexpr uint16_t KICKSTART_MS = 80;
+        /** @brief Intensidade do pulso inicial (0.0 a 1.0). */
+        constexpr float KICKSTART_EFFORT = 0.40f;
     } // namespace Motor
 
     /**
@@ -91,4 +96,3 @@ namespace Config
         constexpr uint8_t BTN_AUTO = 2;
     } // namespace Gamepad
 } // namespace Config
-  // namespace Config
