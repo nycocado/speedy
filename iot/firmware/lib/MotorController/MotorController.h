@@ -14,10 +14,16 @@ struct MotorConfig
         uint8_t resolution;
         /** @brief Tempo morto entre inversões de rotação (ms). */
         uint16_t deadbandMs;
-        /** @brief Esforço mínimo normalizado para acionar o motor. */
+        /** @brief Esforço mínimo normalizado para acionar o motor (Deadzone). */
         float minEffort;
+        /** @brief Esforço mínimo para manter o motor em movimento (Sustentação). */
+        float minDriveEffort;
         /** @brief Inverter o sentido lógico de rotação. */
         bool invertDirection;
+        /** @brief Tempo do pulso inicial para vencer a inércia (ms). */
+        uint16_t kickstartMs;
+        /** @brief Intensidade do pulso inicial (0.0 a 1.0). */
+        float kickstartEffort;
 };
 
 /**
@@ -85,6 +91,10 @@ class MotorController
         MotorDirection _currentDirection;
         uint32_t _deadbandStartTime;
         bool _inDeadband;
+
+        // Controle de Kickstart (Inércia)
+        uint32_t _kickstartStartTime;
+        bool _isKickstarting;
 
         /**
          * @brief Zera os sinais PWM em ambos os canais.

@@ -15,28 +15,27 @@ def find_first_joystick():
 def generate_launch_description():
     """
     Script de inicialização de teleoperação manual.
-    Orquestra apenas o Driver do Joystick e eventuais nós de conversão de comandos.
     """
     
     joy_dev = find_first_joystick()
 
-    # Log informativo via Launch Action
+    # Log informativo
     log_msg = LogInfo(
-        msg=f"\n{'='*60}\n  [SPEEDY TELEOP] Inicializando Sistema de Controle Manual...\n  [HARDWARE] Controle detectado em: {joy_dev}\n{'='*60}\n"
+        msg=f"\n{'='*60}\n  [SPEEDY TELEOP] Inicializando Sistema de Controle Manual...\n  [CONFIG] Autorepeat Ativo (20Hz)\n{'='*60}\n"
     )
 
-    # Nó do Joystick usando joy (Pacote antigo/SDL2 padrão)
+    # Nó do Joystick
     joy_node = Node(
         package='joy',
         executable='joy_node',
         name='joy_node',
         parameters=[{
-            'device_id': 0,
+            'device_name': 'MACHENIKE G5Pro',
             'deadzone': 0.05,
-            'coalesce_interval': 0.01
+            'coalesce_interval_ms': 1
         }],
         respawn=True,
-        respawn_delay=1.0, 
+        respawn_delay=1.0,
         output='screen'
     )
 

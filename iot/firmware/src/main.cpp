@@ -19,7 +19,10 @@ MotorConfig motorCfg = {
     Config::Motor::RESOLUTION,
     Config::Motor::DEADBAND_MS,
     Config::Motor::MIN_EFFORT,
-    Config::Motor::INVERT_DIRECTION};
+    Config::Motor::MIN_DRIVE_EFFORT,
+    Config::Motor::INVERT_DIRECTION,
+    Config::Motor::KICKSTART_MS,
+    Config::Motor::KICKSTART_EFFORT};
 
 // Mapeamento do gamepad baseado nas constantes do projeto
 GamepadConfig gamepadCfg = {
