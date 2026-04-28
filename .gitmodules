@@ -1,0 +1,8 @@
+[submodule "iot/software/src/micro-ROS-Agent"]
+	path = iot/software/src/micro-ROS-Agent
+	url = https://github.com/micro-ROS/micro-ROS-Agent.git
+	branch = jazzy
+[submodule "iot/software/src/micro_ros_msgs"]
+	path = iot/software/src/micro_ros_msgs
+	url = https://github.com/micro-ROS/micro_ros_msgs.git
+	branch = jazzy

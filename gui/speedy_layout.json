@@ -1,0 +1,105 @@
+{
+  "configVariableValues": {},
+  "layout": {
+    "direction": "row",
+    "first": {
+      "first": "RawMessages!30x7m8p",
+      "second": "StateAggregator!25oihz8",
+      "direction": "column",
+      "splitPercentage": 40
+    },
+    "second": {
+      "first": {
+        "first": "Gauge!2m6r3r2",
+        "second": "Gauge!1yqpt3g",
+        "direction": "row",
+        "splitPercentage": 50
+      },
+      "second": {
+        "first": "RosOut!3k8w0w1",
+        "second": "Plot!1w7j3h8",
+        "direction": "column",
+        "splitPercentage": 40
+      },
+      "direction": "column",
+      "splitPercentage": 50
+    },
+    "splitPercentage": 25
+  },
+  "panels": {
+    "RawMessages!30x7m8p": {
+      "topicPath": "/joy",
+      "diffEnabled": false,
+      "frozen": false,
+      "showFullMessageForSingleTopic": false
+    },
+    "StateAggregator!25oihz8": {
+      "path": "",
+      "title": "Gamepad Status",
+      "items": [
+        {
+          "path": "/joy.buttons[0]",
+          "label": "FREIO (A/X)",
+          "color": "#e01b24"
+        },
+        {
+          "path": "/joy.buttons[1]",
+          "label": "MANUAL (B/O)",
+          "color": "#3584e4"
+        },
+        {
+          "path": "/joy.buttons[2]",
+          "label": "AUTO (X/Square)",
+          "color": "#2ec27e"
+        }
+      ]
+    },
+    "Gauge!2m6r3r2": {
+      "title": "DIREÇÃO (Steering)",
+      "topicPath": "/joy.axes[0]",
+      "min": -1,
+      "max": 1,
+      "colorEditorColor": "#3584e4",
+      "gradient": [
+        { "color": "#3584e4", "position": 0 },
+        { "color": "#ffffff", "position": 0.5 },
+        { "color": "#3584e4", "position": 1 }
+      ]
+    },
+    "Gauge!1yqpt3g": {
+      "title": "ACELERAÇÃO (Throttle/Reverse)",
+      "topicPath": "/joy.axes[5]",
+      "min": -1,
+      "max": 1,
+      "colorEditorColor": "#2ec27e"
+    },
+    "RosOut!3k8w0w1": {
+      "searchTerms": [],
+      "minLogLevel": 1,
+      "topicPath": "/speedy/debug"
+    },
+    "Plot!1w7j3h8": {
+      "title": "Telemetria Tempo Real",
+      "series": [
+        {
+          "path": "/joy.axes[0]",
+          "label": "Direção",
+          "color": "#3584e4"
+        },
+        {
+          "path": "/joy.axes[5]",
+          "label": "Aceleração",
+          "color": "#2ec27e"
+        }
+      ],
+      "showLegend": true,
+      "xAxisMode": "relative"
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "version": 18
+}
