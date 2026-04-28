@@ -17,7 +17,7 @@ namespace Pins
     /** @brief Pino de sinal do Servo de Direção. */
     constexpr uint8_t SERVO = 4;
 } // namespace Pins
-
+ 
 /**
  * @namespace Config
  * @brief Parâmetros lógicos globais de sistema.
@@ -39,13 +39,13 @@ namespace Config
         /** @brief Esforço mínimo normalizado (0.0 a 1.0) para acionar o motor (Deadzone). */
         constexpr float MIN_EFFORT = 0.05f;
         /** @brief Esforço mínimo para manter o motor em movimento (Sustentação). */
-        constexpr float MIN_DRIVE_EFFORT = 0.35f;
+        constexpr float MIN_DRIVE_EFFORT = 0.15f;
         /** @brief Inverter o sentido de rotação do motor (true/false). */
         constexpr bool INVERT_DIRECTION = false;
         /** @brief Tempo do pulso inicial para vencer a inércia (ms). */
         constexpr uint16_t KICKSTART_MS = 80;
         /** @brief Intensidade do pulso inicial (0.0 a 1.0). */
-        constexpr float KICKSTART_EFFORT = 0.40f;
+        constexpr float KICKSTART_EFFORT = 0.20f;
     } // namespace Motor
 
     /**
