@@ -12,9 +12,14 @@
         name: [ros-jazzy-ros-base, ros-jazzy-foxglove-bridge, ros-dev-tools, ros-jazzy-joy]
         update_cache: yes
 
-    - name: Configurar rosdep
-      ansible.builtin.shell: |
-        [ -f /etc/ros/rosdep/sources.list.d/20-default.list ] || rosdep init
-        rosdep update
+    - name: Inicializar rosdep
+      ansible.builtin.command: rosdep init
+      args:
+        creates: /etc/ros/rosdep/sources.list.d/20-default.list
+      become: yes
+      ignore_errors: yes
+
+    - name: Atualizar rosdep
+      ansible.builtin.command: rosdep update
       become: no
       ignore_errors: yes

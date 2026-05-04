@@ -1,11 +1,75 @@
 ---
-- name: Rede (RPi)
+- name: Rede (RPi) - Migração Segura para NetworkManager (Ubuntu 24.04)
   block:
-    - name: Instalar avahi e ssh
-      ansible.builtin.apt: { name: [avahi-daemon, ssh], state: present }
-    - name: Configurar interface eth0
-      ansible.builtin.copy: { src: ../files/99-eth0.yaml, dest: /etc/netplan/99-eth0.yaml }
-      register: net_apply
-    - name: Aplicar Netplan
-      ansible.builtin.command: netplan apply
-      when: net_apply.changed
+    - name: Instalar NetworkManager e rfkill
+      ansible.builtin.apt:
+        name: [network-manager, rfkill, avahi-daemon, ssh]
+        state: present
+
+    - name: Configurar NetworkManager para gerenciar TODAS as interfaces
+      ansible.builtin.copy:
+        src: ../files/manage-all.conf
+        dest: /etc/NetworkManager/conf.d/manage-all.conf
+        mode: '0644'
+
+    - name: Criar conexão persistente de segurança para eth0 (Garante SSH)
+      ansible.builtin.copy:
+        src: ../files/eth0.nmconnection
+        dest: /etc/NetworkManager/system-connections/eth0.nmconnection
+        mode: '0600'
+
+    - name: Listar ficheiros antigos do Netplan
+      ansible.builtin.find:
+        paths: /etc/netplan
+        patterns: "*.yaml,*.yml"
+      register: netplan_files
+
+    - name: Limpar configurações antigas do Netplan
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ netplan_files.files }}"
+      become: yes
+
+    - name: Delegar controlo ao NetworkManager via Netplan
+      ansible.builtin.copy:
+        src: ../files/01-network-manager-all.yaml
+        dest: /etc/netplan/01-network-manager-all.yaml
+        mode: '0600'
+      become: yes
+
+    - name: Aplicar Netplan e aguardar queda de conexão (Transição de Interface)
+      ansible.builtin.shell: netplan apply
+      async: 60
+      poll: 0
+      become: yes
+      ignore_errors: yes
+
+    - name: Aguardar o robô voltar a ficar online (via Eth0 ou Wi-Fi)
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 60
+
+    - name: Reiniciar NetworkManager para assumir o controle total
+      ansible.builtin.systemd:
+        name: NetworkManager
+        state: restarted
+
+    - name: Desativar serviços conflitantes do systemd-networkd
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: no
+        state: stopped
+      loop:
+        - systemd-networkd
+        - systemd-networkd.socket
+        - networkd-dispatcher
+      ignore_errors: yes
+
+    - name: Instalar script do Hotspot (via nmcli)
+      ansible.builtin.copy:
+        src: ../files/speedy-hotspot.sh
+        dest: /usr/local/bin/speedy-hotspot
+        mode: '0755'
+        owner: root
+        group: root

@@ -6,3 +6,9 @@
 	path = iot/software/src/micro_ros_msgs
 	url = https://github.com/micro-ROS/micro_ros_msgs.git
 	branch = jazzy
+[submodule "iot/software/src/camera_ros"]
+	path = iot/software/src/camera_ros
+	url = https://github.com/christianrauch/camera_ros.git
+[submodule "iot/software/src/ldlidar_ros2"]
+	path = iot/software/src/ldlidar_ros2
+	url = https://github.com/ldrobotSensorTeam/ldlidar_ros2

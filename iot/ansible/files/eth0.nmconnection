@@ -1,0 +1,14 @@
+[connection]
+id=eth0-connection
+type=ethernet
+interface-name=eth0
+autoconnect=true
+autoconnect-priority=100
+
+[ethernet]
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=ignore

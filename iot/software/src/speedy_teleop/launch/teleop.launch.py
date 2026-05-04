@@ -1,23 +1,11 @@
-import os
-import glob
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import LogInfo
-
-def find_first_joystick():
-    """Busca o primeiro joystick disponível (/dev/input/js*)."""
-    devices = glob.glob('/dev/input/js*')
-    if devices:
-        devices.sort()
-        return devices[0]
-    return '/dev/input/js0'
 
 def generate_launch_description():
     """
     Script de inicialização de teleoperação manual.
     """
-    
-    joy_dev = find_first_joystick()
 
     # Log informativo
     log_msg = LogInfo(

@@ -3,24 +3,51 @@
   block:
     - name: Garantir diretório do workspace
       ansible.builtin.file:
-        path: "~/speedy_ws/src"
+        path: "/home/{{ ansible_user }}/speedy_ws/src"
         state: directory
         mode: '0755'
       become: no
 
-    - name: Sincronizar código fonte do software
-      ansible.builtin.synchronize:
+    - name: Sincronizar código fonte do software (Alta Performance via rsync)
+      ansible.posix.synchronize:
         src: "../../software/src/"
-        dest: "~/speedy_ws/src/"
+        dest: "/home/{{ ansible_user }}/speedy_ws/src/"
         recursive: yes
         delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=build"
+          - "--exclude=install"
+          - "--exclude=log"
+          - "--exclude=__pycache__"
       become: no
+
+    - name: Corrigir falta de pthread.h no SDK do LiDAR (Patch Automático)
+      ansible.builtin.lineinfile:
+        path: "/home/{{ ansible_user }}/speedy_ws/src/ldlidar_ros2/sdk/src/log_module.cpp"
+        insertafter: '#include "ldlidar_driver/log_module.h"'
+        line: '#include <pthread.h>'
+        state: present
+      become: no
+
+    - name: Atualizar banco de dados do rosdep (Usuário e Root)
+      ansible.builtin.command:
+        cmd: rosdep update
+      become: "{{ item }}"
+      loop: [no, yes]
+      changed_when: false
+
+    - name: Instalar dependências do workspace (rosdep)
+      ansible.builtin.shell:
+        cmd: "rosdep install --from-paths src --ignore-src -y --rosdistro jazzy"
+        chdir: "/home/{{ ansible_user }}/speedy_ws"
+      become: yes
 
     - name: Compilar workspace com colcon
       ansible.builtin.shell:
-        cmd: "source /opt/ros/jazzy/setup.zsh && colcon build --symlink-install"
-        executable: /bin/zsh
-        chdir: "~/speedy_ws"
+        cmd: "source /opt/ros/jazzy/setup.bash && colcon build --symlink-install"
+        executable: /bin/bash
+        chdir: "/home/{{ ansible_user }}/speedy_ws"
       become: no
       register: colcon_build
       changed_when: "'Finished' in colcon_build.stdout"

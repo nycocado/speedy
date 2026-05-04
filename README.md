@@ -6,9 +6,9 @@ Este projeto é desenvolvido no âmbito do **3º Ano (6º Semestre) de Engenhari
 
 ## Especificações Técnicas
 
-- **Cérebro (Alto Nível):** Raspberry Pi 4B (4GB) - **ROS 2 Jazzy**.
+- **Cérebro (Alto Nível):** Raspberry Pi 5 (8GB) - **ROS 2 Jazzy (via Podman)**.
 - **Cerebelo (Baixo Nível):** ESP32-S3 (**N16R8**: 16MB Flash, 8MB PSRAM Octal).
-- **Visão & Navegação:** LiDAR ToF **LDROBOT D500** + Câmera (YOLOv8/11).
+- **Visão & Navegação:** LiDAR ToF **LDROBOT D500** + Câmera (PiSP Optimized).
 - **Atuadores:** Servo MG996R (Direção Ackermann) + Driver **BTS7960** (Tração Traseira).
 - **Sensores:** IMU MPU6050 (Estabilização) + Sensor Hall A3144 (Velocidade/Odometria).
 - **Energia:** Bateria LiPo 3S (11.1V).
@@ -41,7 +41,7 @@ O projeto está organizado nas seguintes pastas:
 
 ## Pré-requisitos do Sistema Host
 
-O projeto utiliza **Ansible** para garantir um provisionamento idempotente, limpo e reprodutível, tanto para o ambiente de desenvolvimento local (via Distrobox) quanto para o robô físico (Raspberry Pi 4).
+O projeto utiliza **Ansible** para garantir um provisionamento idempotente, limpo e reprodutível, tanto para o ambiente de desenvolvimento local (via Distrobox) quanto para o robô físico (Raspberry Pi 5 rodando RPi OS Lite).
 
 O sistema anfitrião deve dispor das seguintes dependências instaladas e operacionais (a instalação e configuração destas ferramentas no sistema operativo anfitrião são da inteira responsabilidade do utilizador):
 
@@ -83,7 +83,7 @@ ansible-playbook -i inventory.ini distrobox/main.yml
 *(Certifique-se que o Pi está ligado à rede ou cabo e verifique o IP/Hostname no ficheiro `inventory.ini`)*
 
 ```bash
-ansible-playbook -i inventory.ini raspberrypi/main.yml -k -k
+ansible-playbook -i inventory.ini raspberrypi/main.yml -k -K
 ```
 
 *(O `-k` pedirá a senha SSH do utilizador no Raspberry Pi).*
