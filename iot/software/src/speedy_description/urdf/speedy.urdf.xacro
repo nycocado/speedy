@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<robot name="speedy" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============================================== -->
+  <!-- CARREGAMENTO DE PARÂMETROS                     -->
+  <!-- ============================================== -->
+  <xacro:arg name="hardware_config_file" default="" />
+  <xacro:property name="hw_config_path" value="$(arg hardware_config_file)" />
+  
+  <!-- Carrega parâmetros do hardware.yaml se o arquivo for fornecido -->
+  <xacro:if value="${hw_config_path != ''}">
+    <xacro:property name="hw_config" value="${xacro.load_yaml(hw_config_path)['speedy_hardware']['ros__parameters']}" />
+    <!-- Converte graus para radianos pro URDF -->
+    <xacro:property name="max_steer_angle_left" value="${hw_config['max_steering_angle_left_deg'] * (pi / 180.0)}" />
+    <xacro:property name="max_steer_angle_right" value="${hw_config['max_steering_angle_right_deg'] * (pi / 180.0)}" />
+  </xacro:if>
+  <xacro:unless value="${hw_config_path != ''}">
+    <xacro:property name="max_steer_angle_left" value="0.785398" />
+    <xacro:property name="max_steer_angle_right" value="0.785398" />
+  </xacro:unless>
+
+  <!-- ============================================== -->
+  <!-- DESCRIÇÃO CINEMÁTICA                           -->
+  <!-- ============================================== -->
+
+  <link name="base_link" />
+
+  <link name="drive_wheel_link" />
+  <joint name="drive_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="drive_wheel_link"/>
+    <origin xyz="-0.15 0 0" rpy="0 0 0"/> 
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="steering_link" />
+  <joint name="steering_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="steering_link"/>
+    <origin xyz="0.15 0 0" rpy="0 0 0"/> 
+    <axis xyz="0 0 1"/>
+    <limit lower="${-max_steer_angle_right}" upper="${max_steer_angle_left}" effort="10.0" velocity="5.0"/>
+  </joint>
+
+  <!-- ============================================== -->
+  <!-- CONFIGURAÇÃO DO ROS2_CONTROL                   -->
+  <!-- ============================================== -->
+  <ros2_control name="SpeedySystem" type="system">
+    <hardware>
+      <plugin>speedy_control/SpeedyHardwareInterface</plugin>
+      
+      <!-- Parâmetros passados via URDF para a Hardware Interface -->
+      <xacro:if value="${hw_config_path != ''}">
+        <param name="pin_motor_en_1">${hw_config['pin_motor_en_1']}</param>
+        <param name="pin_motor_en_2">${hw_config['pin_motor_en_2']}</param>
+        <param name="pin_motor_fwd">${hw_config['pin_motor_fwd']}</param>
+        <param name="pin_motor_fwd_ch">${hw_config['pin_motor_fwd_ch']}</param>
+        <param name="pin_motor_rev">${hw_config['pin_motor_rev']}</param>
+        <param name="pin_motor_rev_ch">${hw_config['pin_motor_rev_ch']}</param>
+        <param name="pin_servo">${hw_config['pin_servo']}</param>
+        <param name="pin_servo_ch">${hw_config['pin_servo_ch']}</param>
+        <param name="pin_hall">${hw_config['pin_hall']}</param>
+        
+        <param name="motor_period_ns">${hw_config['motor_period_ns']}</param>
+        <param name="motor_min_effort">${hw_config['motor_min_effort']}</param>
+        <param name="motor_deadband_ms">${hw_config['motor_deadband_ms']}</param>
+        <param name="motor_invert_direction">${hw_config['motor_invert_direction']}</param>
+        
+        <param name="steering_pwm_freq_hz">${hw_config['steering_pwm_freq_hz']}</param>
+        <param name="steering_center_pulse_ms">${hw_config['steering_center_pulse_ms']}</param>
+        <param name="steering_max_deflection_ms">${hw_config['steering_max_deflection_ms']}</param>
+        <param name="steering_max_speed_deg_per_sec">${hw_config['steering_max_speed_deg_per_sec']}</param>
+        <param name="max_steering_angle_left_deg">${hw_config['max_steering_angle_left_deg']}</param>
+        <param name="max_steering_angle_right_deg">${hw_config['max_steering_angle_right_deg']}</param>
+        <param name="steering_trim_deg">${hw_config['steering_trim_deg']}</param>
+        <param name="steering_invert_direction">${hw_config['steering_invert_direction']}</param>
+        
+        <param name="pid_kp">${hw_config['pid_kp']}</param>
+        <param name="pid_ki">${hw_config['pid_ki']}</param>
+        <param name="pid_kd">${hw_config['pid_kd']}</param>
+        <param name="velocity_filter_alpha">${hw_config['velocity_filter_alpha']}</param>
+        <param name="wheel_radius">${hw_config['wheel_radius']}</param>
+        <param name="gear_ratio">${hw_config['gear_ratio']}</param>
+        <param name="magnets_per_rev">${hw_config['magnets_per_rev']}</param>
+      </xacro:if>
+    </hardware>
+    
+    <joint name="drive_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <joint name="steering_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+    </joint>
+  </ros2_control>
+
+</robot>

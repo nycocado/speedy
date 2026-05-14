@@ -1,6 +1,6 @@
 ---
 - name: Configuração Interna do Distrobox (Software e Shell)
-  hosts: host
+  hosts: dev
   tasks:
     - name: "Passo 1: Shell e Dotfiles"
       ansible.builtin.include_tasks: 01_shell.yml

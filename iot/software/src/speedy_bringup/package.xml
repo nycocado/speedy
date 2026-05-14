@@ -13,18 +13,17 @@
   <!-- Dependências de execução -->
   <!-- O pacote de bringup não compila código, mas depende em tempo de execução 
        dos nós que vai lançar para garantir que existam no workspace. -->
-  <exec_depend>micro_ros_agent</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>foxglove_bridge</exec_depend>
   <exec_depend>speedy_teleop</exec_depend>
+  <exec_depend>speedy_control</exec_depend>
 
   <!-- Dependências apenas para execução de testes unitários -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
   <export>
-    <!-- Declara explicitamente que este é um pacote C++ usando ament_cmake -->
-    <build_type>ament_cmake</build_type>
+    <build_type>ament_python</build_type>
   </export>
 </package>

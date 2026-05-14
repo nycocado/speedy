@@ -7,21 +7,19 @@ Wants=network-online.target
 Type=simple
 User={{ ansible_user }}
 Group={{ ansible_user }}
-WorkingDirectory=/home/{{ ansible_user }}
+WorkingDirectory=/home/{{ ansible_user }}/speedy_ws
 
-# Força o carregamento dos drivers específicos da Raspberry Pi 5
-# Isso evita que o ROS use a libcamera genérica do Ubuntu
-Environment="LD_PRELOAD=/usr/local/lib/aarch64-linux-gnu/libcamera.so:/usr/local/lib/aarch64-linux-gnu/libcamera-base.so:/usr/local/lib/aarch64-linux-gnu/libpisp.so"
+# Tuning de Agendamento e Memória (Evitar engasgos sem forçar CPU clock)
+LimitRTPRIO=99
+LimitMEMLOCK=infinity
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=85
+
 Environment="ROS_DOMAIN_ID=0"
-Environment="RMW_IMPLEMENTATION=rmw_fastrtps_cpp"
-Environment="PYTHONPATH=/opt/ros/jazzy/lib/python3.12/site-packages"
-Environment="PATH=/opt/ros/jazzy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="RMW_IMPLEMENTATION=rmw_cyclonedds_cpp"
 
-# Comando de inicialização nativo
-ExecStart=/bin/bash -c "\
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/{{ ansible_user }}/speedy_ws/install/setup.bash && \
-    ros2 launch speedy_bringup speedy.launch.py"
+# O comando carrega o ambiente ROS 2 do sistema e o workspace do utilizador
+ExecStart=/bin/bash -c "source /opt/ros/jazzy/setup.bash && source /home/{{ ansible_user }}/speedy_ws/install/setup.bash && ros2 launch speedy_bringup speedy.launch.py"
 
 KillMode=mixed
 KillSignal=SIGINT

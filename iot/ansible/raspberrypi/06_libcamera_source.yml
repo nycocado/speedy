@@ -1,0 +1,28 @@
+- name: Compilar e Instalar libcamera (RPI Fork - Nativo)
+  block:
+    - name: Clonar repositório libcamera (Com submodules para PISP)
+      ansible.builtin.git:
+        repo: 'https://github.com/raspberrypi/libcamera.git'
+        dest: "/home/{{ ansible_user }}/libcamera"
+        version: main
+        recursive: yes
+      become: no
+
+    - name: Configurar e Compilar libcamera (Headless Build)
+      ansible.builtin.shell:
+        cmd: |
+          meson setup build --buildtype=release \
+            -Dpipelines=rpi/vc4,rpi/pisp -Dipas=rpi/vc4,rpi/pisp \
+            -Dv4l2=enabled -Dgstreamer=disabled -Dtest=false -Dlc-compliance=disabled \
+            -Dcam=enabled -Dqcam=disabled -Ddocumentation=disabled -Dpycamera=enabled
+          ninja -C build
+        chdir: "/home/{{ ansible_user }}/libcamera"
+        creates: "/home/{{ ansible_user }}/libcamera/build/src/libcamera/libcamera.so"
+      become: no
+
+    - name: Instalar libcamera no sistema
+      ansible.builtin.command:
+        cmd: ninja -C build install
+        chdir: "/home/{{ ansible_user }}/libcamera"
+        creates: "/usr/local/lib/aarch64-linux-gnu/libcamera.so"
+      become: yes

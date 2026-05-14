@@ -1,34 +1,45 @@
 ---
-- name: 01 - Shell e Dotfiles (Distrobox)
+- name: 01 - Shell e Dotfiles
   block:
-    - name: Instalar Zsh e dependências dentro do container
-      ansible.builtin.command:
-        cmd: 'distrobox enter -n speedy-dev -- sh -c "sudo apt-get update && sudo apt-get install -y zsh git curl wget"'
-      changed_when: false
+    - name: Atualizar cache e instalar pacotes base
+      ansible.builtin.apt:
+        update_cache: yes
+        name: [zsh, git, curl, wget]
+        state: present
+      become: yes
 
-    - name: Instalar Oh My Zsh dentro do container
-      ansible.builtin.command:
-        cmd: 'env -u ZSH distrobox enter -n speedy-dev -- sh -c "[ -d ~/.oh-my-zsh ] || (curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh > /tmp/install_omz.sh && sh /tmp/install_omz.sh --unattended)"'
-      changed_when: false
+    - name: Verificar se o Oh My Zsh já está instalado
+      ansible.builtin.stat:
+        path: "~/.oh-my-zsh"
+      register: omz_dir
 
-    - name: Clonar plugins Zsh dentro do container
-      ansible.builtin.command:
-        cmd: 'distrobox enter -n speedy-dev -- sh -c "[ -d ~/.oh-my-zsh/custom/{{ item.path }} ] || git clone --depth=1 {{ item.repo }} ~/.oh-my-zsh/custom/{{ item.path }}"'
+    - name: Instalar Oh My Zsh
+      ansible.builtin.shell: 'curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh > /tmp/install_omz.sh && sh /tmp/install_omz.sh --unattended'
+      when: not omz_dir.stat.exists
+
+    - name: Clonar plugins Zsh
+      ansible.builtin.git:
+        repo: "{{ item.repo }}"
+        dest: "~/.oh-my-zsh/custom/{{ item.path }}"
+        depth: 1
+        update: no
       loop:
         - { repo: 'https://github.com/romkatv/powerlevel10k.git', path: 'themes/powerlevel10k' }
         - { repo: 'https://github.com/zsh-users/zsh-autosuggestions', path: 'plugins/zsh-autosuggestions' }
         - { repo: 'https://github.com/zsh-users/zsh-syntax-highlighting.git', path: 'plugins/zsh-syntax-highlighting' }
         - { repo: 'https://github.com/zsh-users/zsh-completions.git', path: 'plugins/zsh-completions' }
-      changed_when: false
 
-    - name: Configurar Zsh como shell padrão do container
-      ansible.builtin.command:
-        cmd: 'distrobox enter -n speedy-dev -- sudo chsh -s /usr/bin/zsh {{ ansible_user_id }}'
-      changed_when: false
+    - name: Configurar Zsh como shell padrão
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        shell: /usr/bin/zsh
+      become: yes
 
-    - name: Sincronizar dotfiles para a Home isolada
+    # Os dotfiles já são copiados pelo script host/main.yml para a pasta speedy-home no host.
+    # Mas se quisermos sincronizar de dentro do container:
+    - name: Sincronizar dotfiles
       ansible.builtin.copy:
         src: "../files/{{ item }}"
-        dest: "{{ ansible_user_dir }}/distrobox/speedy-home/{{ item }}"
+        dest: "~/{{ item }}"
         mode: '0644'
       loop: [.zshrc, .p10k.zsh]

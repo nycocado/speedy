@@ -1,0 +1,49 @@
+---
+- name: 07 - Instalar ROS 2 Jazzy Nativo (Rospian)
+  block:
+    - name: Garantir dependências para gerir repositórios
+      ansible.builtin.apt:
+        name: [curl, gnupg]
+        state: present
+
+    - name: Importar a chave GPG do Rospian
+      ansible.builtin.shell: |
+        curl -fsSL https://rospian.github.io/rospian-repo/public/rospian-archive-keyring.asc | gpg --dearmor > /usr/share/keyrings/rospian-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/rospian-archive-keyring.gpg
+
+    - name: Adicionar o repositório APT do Rospian (trixie-jazzy)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=arm64 signed-by=/usr/share/keyrings/rospian-archive-keyring.gpg] https://rospian.github.io/rospian-repo trixie-jazzy main"
+        state: present
+        filename: rospian
+
+    - name: Atualizar cache e instalar ROS 2 Jazzy Base e Pacotes Autónomos
+      ansible.builtin.apt:
+        update_cache: yes
+        name: 
+          - ros-jazzy-ros-base
+          - ros-jazzy-rmw-cyclonedds-cpp
+          - colcon
+          - python3-colcon-ros
+          - python3-rosdep2
+          - build-essential
+          - ros-jazzy-ros2-control
+          - ros-jazzy-ros2-controllers
+          - ros-jazzy-bicycle-steering-controller
+          - ros-jazzy-xacro
+          - ros-jazzy-robot-state-publisher
+          - ros-jazzy-cv-bridge
+          - ros-jazzy-image-transport
+          - ros-jazzy-camera-info-manager
+          - ros-jazzy-diagnostic-msgs
+          - ros-jazzy-resource-retriever
+          - ros-jazzy-ament-index-cpp
+          - ros-jazzy-joy
+          - ros-jazzy-joy-linux
+          - ros-jazzy-image-proc
+          - ros-jazzy-camera-calibration
+          - nlohmann-json3-dev
+          - libwebsocketpp-dev
+          - libasio-dev
+        state: present

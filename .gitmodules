@@ -1,14 +1,12 @@
-[submodule "iot/software/src/micro-ROS-Agent"]
-	path = iot/software/src/micro-ROS-Agent
-	url = https://github.com/micro-ROS/micro-ROS-Agent.git
-	branch = jazzy
-[submodule "iot/software/src/micro_ros_msgs"]
-	path = iot/software/src/micro_ros_msgs
-	url = https://github.com/micro-ROS/micro_ros_msgs.git
-	branch = jazzy
+[submodule "iot/software/src/ldlidar_ros2"]
+	path = iot/software/src/ldlidar_ros2
+	url = https://github.com/nycocado/ldlidar_ros2.git
 [submodule "iot/software/src/camera_ros"]
 	path = iot/software/src/camera_ros
 	url = https://github.com/christianrauch/camera_ros.git
-[submodule "iot/software/src/ldlidar_ros2"]
-	path = iot/software/src/ldlidar_ros2
-	url = https://github.com/ldrobotSensorTeam/ldlidar_ros2
+[submodule "iot/software/src/foxglove-sdk"]
+	path = iot/software/src/foxglove-sdk
+	url = https://github.com/nycocado/foxglove-sdk.git
+[submodule "iot/software/src/rosx_introspection"]
+	path = iot/software/src/rosx_introspection
+	url = https://github.com/nycocado/rosx_introspection.git

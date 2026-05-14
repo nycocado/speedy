@@ -1,23 +1,28 @@
 ---
-- name: Setup do Robô Speedy (Raspberry Pi 5)
+- name: Setup do Robô Speedy (Raspberry Pi OS Lite + Rospian Nativo)
   hosts: robots
   become: yes
+
   tasks:
-    - name: "Passo 1: Sistema Base"
+    - name: "Passo 01: Sistema Base"
       ansible.builtin.include_tasks: 01_base.yml
-    - name: "Passo 2: Rede e Acesso"
+    - name: "Passo 02: Rede e Acesso"
       ansible.builtin.include_tasks: 02_network.yml
-    - name: "Passo 3: Shell e Zsh"
+    - name: "Passo 03: Shell e Dotfiles"
       ansible.builtin.include_tasks: 03_shell.yml
-    - name: "Passo 4: ROS 2 e Foxglove"
-      ansible.builtin.include_tasks: 04_ros2.yml
-    - name: "Passo 5: Hardware e GUI"
-      ansible.builtin.include_tasks: 05_hardware.yml
-    - name: "Passo 6: Pacotes Adicionais"
-      ansible.builtin.include_tasks: 06_extra_packages.yml
-    - name: "Passo 6b: Compilar libcamera na fonte (PiSP)"
-      ansible.builtin.include_tasks: 06b_libcamera_source.yml
-    - name: "Passo 7: Workspace e Build"
-      ansible.builtin.include_tasks: 07_workspace.yml
-    - name: "Passo 8: Auto-Start (Servico)"
-      ansible.builtin.include_tasks: 08_service.yml
+    - name: "Passo 04: Hardware e Overlays"
+      ansible.builtin.include_tasks: 04_hardware.yml
+    - name: "Passo 05: Dependências APT (Host)"
+      ansible.builtin.include_tasks: 05_extra_packages.yml
+#   - name: "Passo 06: Compilar libcamera (RPI Nativo)"
+#     ansible.builtin.include_tasks: 06_libcamera_source.yml
+    - name: "Passo 07: ROS 2 Nativo (Rospian)"
+      ansible.builtin.include_tasks: 07_rospian.yml
+    - name: "Passo 08: Workspace ROS 2 (Sincronização e Patches)"
+      ansible.builtin.include_tasks: 08_workspace.yml
+    - name: "Passo 09: Compilação do Workspace"
+      ansible.builtin.include_tasks: 09_workspace_build.yml
+    - name: "Passo 10: Auto-Start (Serviço Systemd)"
+      ansible.builtin.include_tasks: 10_service.yml
+    - name: "Passo 11: Otimização de Performance (Real-Time)"
+      ansible.builtin.include_tasks: 11_performance.yml

@@ -119,20 +119,17 @@ autoload -U compinit && compinit
 
 export PATH="$HOME/.local/bin:$PATH"
 
-# ROS 2 Environment (Only inside Ubuntu container)
-if grep -q "Ubuntu" /etc/os-release 2>/dev/null; then
-    if [ -f /opt/ros/jazzy/setup.zsh ]; then
-        source /opt/ros/jazzy/setup.zsh
-    fi
+# ROS 2 Environment
+if [ -f /opt/ros/jazzy/setup.zsh ]; then
+    source /opt/ros/jazzy/setup.zsh
+fi
 
-    if [ -f ~/speedy_ws/install/setup.zsh ]; then
-        source ~/speedy_ws/install/setup.zsh
-    fi
+if [ -f ~/speedy_ws/install/setup.zsh ]; then
+    source ~/speedy_ws/install/setup.zsh
 fi
 
 export ROS_DOMAIN_ID=0
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-export ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
 
 if command -v fastfetch >/dev/null; then
     fastfetch --pipe false -c examples/14 && printf "\n"

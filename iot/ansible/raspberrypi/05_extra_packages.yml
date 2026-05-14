@@ -1,0 +1,7 @@
+---
+- name: 05 - Ferramentas Adicionais (Host)
+  block:
+    - name: Instalar ferramentas de monitoramento e sistema
+      ansible.builtin.apt:
+        name: [build-essential, cmake, pkg-config, htop, nvtop, tmux, nano, v4l-utils, python3-pip, libcamera-dev, libcamera-ipa, libcamera-v4l2, libcamera-tools, libfmt-dev, meson, ninja-build, python3-jinja2, python3-ply, python3-yaml, libyaml-dev, libevent-dev, libgnutls28-dev, libudev-dev, pybind11-dev, libgpiod-dev, rapidjson-dev]
+        state: present

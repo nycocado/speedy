@@ -1,75 +1,44 @@
 ---
-- name: Rede (RPi) - Migração Segura para NetworkManager (Ubuntu 24.04)
+- name: 02 - Rede e Acesso (Host RPi OS Lite)
   block:
-    - name: Instalar NetworkManager e rfkill
-      ansible.builtin.apt:
-        name: [network-manager, rfkill, avahi-daemon, ssh]
-        state: present
+    - name: Configurar código de país Wi-Fi (Portugal - PT)
+      ansible.builtin.shell: |
+        iw reg set PT
+        sed -i 's/REGDOMAIN=.*/REGDOMAIN=PT/' /etc/default/crda || echo "REGDOMAIN=PT" >> /etc/default/crda
+      changed_when: false
 
-    - name: Configurar NetworkManager para gerenciar TODAS as interfaces
+    - name: Garantir que o Wi-Fi não está bloqueado pelo rfkill
+      ansible.builtin.shell: rfkill unblock wifi
+      changed_when: false
+
+    - name: Ativar o rádio Wi-Fi no NetworkManager
+      ansible.builtin.command: nmcli radio wifi on
+      changed_when: false
+
+    - name: Implantar configuração de Hotspot (Com UUID válido)
       ansible.builtin.copy:
-        src: ../files/manage-all.conf
-        dest: /etc/NetworkManager/conf.d/manage-all.conf
-        mode: '0644'
+        src: ../files/hotspot.nmconnection
+        dest: /etc/NetworkManager/system-connections/SpeedyHotspot.nmconnection
+        mode: '0600'
+        owner: root
+        group: root
+      register: hotspot_config
 
-    - name: Criar conexão persistente de segurança para eth0 (Garante SSH)
+    - name: Implantar configuração de Ethernet
       ansible.builtin.copy:
         src: ../files/eth0.nmconnection
         dest: /etc/NetworkManager/system-connections/eth0.nmconnection
         mode: '0600'
+        owner: root
+        group: root
+      register: eth0_config
 
-    - name: Listar ficheiros antigos do Netplan
-      ansible.builtin.find:
-        paths: /etc/netplan
-        patterns: "*.yaml,*.yml"
-      register: netplan_files
+    - name: Recarregar NetworkManager para ler novos ficheiros
+      ansible.builtin.command: nmcli connection reload
+      when: hotspot_config.changed or eth0_config.changed
 
-    - name: Limpar configurações antigas do Netplan
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        state: absent
-      loop: "{{ netplan_files.files }}"
-      become: yes
-
-    - name: Delegar controlo ao NetworkManager via Netplan
-      ansible.builtin.copy:
-        src: ../files/01-network-manager-all.yaml
-        dest: /etc/netplan/01-network-manager-all.yaml
-        mode: '0600'
-      become: yes
-
-    - name: Aplicar Netplan e aguardar queda de conexão (Transição de Interface)
-      ansible.builtin.shell: netplan apply
-      async: 60
-      poll: 0
-      become: yes
-      ignore_errors: yes
-
-    - name: Aguardar o robô voltar a ficar online (via Eth0 ou Wi-Fi)
-      ansible.builtin.wait_for_connection:
-        delay: 5
-        timeout: 60
-
-    - name: Reiniciar NetworkManager para assumir o controle total
-      ansible.builtin.systemd:
-        name: NetworkManager
-        state: restarted
-
-    - name: Desativar serviços conflitantes do systemd-networkd
-      ansible.builtin.systemd:
-        name: "{{ item }}"
-        enabled: no
-        state: stopped
-      loop:
-        - systemd-networkd
-        - systemd-networkd.socket
-        - networkd-dispatcher
-      ignore_errors: yes
-
-    - name: Instalar script do Hotspot (via nmcli)
+    - name: Instalar script de utilidade do Hotspot
       ansible.builtin.copy:
         src: ../files/speedy-hotspot.sh
         dest: /usr/local/bin/speedy-hotspot
         mode: '0755'
-        owner: root
-        group: root

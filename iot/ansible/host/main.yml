@@ -46,6 +46,7 @@
           loop:
             - "{{ ansible_user_dir }}/.config/distrobox"
             - "{{ ansible_user_dir }}/distrobox/speedy-home"
+            - "{{ ansible_user_dir }}/distrobox/sim-home"
 
         - name: Sincronizar base do distrobox.ini
           ansible.builtin.copy:
@@ -61,6 +62,14 @@
             value: "{{ ansible_user_dir }}/distrobox/speedy-home"
             no_extra_spaces: yes
 
+        - name: Ajustar home isolada no distrobox.ini para simulador
+          ansible.builtin.ini_file:
+            path: "{{ ansible_user_dir }}/.config/distrobox/speedy_dev.ini"
+            section: "raspberrypi-sim"
+            option: "home"
+            value: "{{ ansible_user_dir }}/distrobox/sim-home"
+            no_extra_spaces: yes
+
         - name: Executar distrobox-assemble create
           ansible.builtin.command: >-
             distrobox-assemble create
@@ -68,3 +77,11 @@
             --file {{ ansible_user_dir }}/.config/distrobox/speedy_dev.ini
           register: db_out
           changed_when: "'creating' in db_out.stdout or 'replacing' in db_out.stdout"
+
+        - name: Inicializar containers (Primeiro boot para instalar pacotes base)
+          ansible.builtin.command:
+            cmd: "distrobox enter {{ item }} -- true"
+          loop:
+            - speedy-dev
+            - raspberrypi-sim
+          changed_when: true

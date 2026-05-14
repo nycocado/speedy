@@ -1,0 +1,25 @@
+---
+- name: 08 - ROS 2 Jazzy Workspace (Sincronização)
+  block:
+    - name: Garantir diretórios base
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "speedy_ws/src"
+      become: no
+
+    - name: Sincronizar código fonte do software
+      ansible.posix.synchronize:
+        src: "../../software/src/"
+        dest: "/home/{{ ansible_user }}/speedy_ws/src/"
+        recursive: yes
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=build"
+          - "--exclude=install"
+          - "--exclude=log"
+          - "--exclude=__pycache__"
+      become: no

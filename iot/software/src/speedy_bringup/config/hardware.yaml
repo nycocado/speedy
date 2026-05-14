@@ -1,0 +1,42 @@
+# Configurações de Hardware do Speedy
+# Utilizado pela SpeedyHardwareInterface (C++) no Raspberry Pi 5
+
+speedy_hardware:
+  ros__parameters:
+    # --- Limites Mecânicos ---
+    max_steering_angle_left_deg: 45.0  # Máximo para a esquerda
+    max_steering_angle_right_deg: 45.0 # Máximo para a direita
+    steering_trim_deg: 30.0             # Ajuste fino do centro físico em graus
+
+    # --- Mapeamento de Pinos (Raspberry Pi 5 / RP1) ---
+    pin_motor_en_1: 17
+    pin_motor_en_2: 27
+    pin_motor_fwd_ch: 0
+    pin_motor_fwd: 12
+    pin_motor_rev_ch: 1
+    pin_motor_rev: 13
+    pin_servo_ch: 3
+    pin_servo: 15
+    pin_hall: 24
+
+    # --- Configurações de Tração ---
+    motor_period_ns: 50000
+    motor_min_effort: 0.05
+    motor_deadband_ms: 10
+    motor_invert_direction: false
+
+    # --- Configurações de Direção (Servo RC) ---
+    steering_pwm_freq_hz: 50.0            # Frequência do sinal (Padrão: 50Hz)
+    steering_center_pulse_ms: 1.5         # Pulso de centro (1.5 milissegundos)
+    steering_max_deflection_ms: 1.0       # Limite de pulso (1.5ms +/- 1.0ms)
+    steering_max_speed_deg_per_sec: 0.0   # 0 = Instantâneo. (Ex: 180.0 para simular servo lento)
+    steering_invert_direction: false
+
+    # --- Controle e Cinemática ---
+    pid_kp: 1.5
+    pid_ki: 0.0
+    pid_kd: 0.1
+    velocity_filter_alpha: 0.2
+    wheel_radius: 0.0325
+    gear_ratio: 2.3
+    magnets_per_rev: 4

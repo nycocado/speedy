@@ -1,0 +1,8 @@
+dataset_collector:
+  ros__parameters:
+    save_path: "~/dataset"
+    burst_period: 0.5
+    button_index: 3
+    undistort: true
+    grayscale: false
+

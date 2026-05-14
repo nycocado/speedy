@@ -1,0 +1,86 @@
+---
+- name: 04 - Hardware e Periféricos
+  block:
+    - name: Instalar ferramentas de hardware (dtc)
+      ansible.builtin.apt:
+        name: [dphys-swapfile, device-tree-compiler]
+        state: present
+
+    - name: Preparar Overlay de PWM customizado para Pi 5 (3 canais)
+      block:
+        - name: Copiar fonte do overlay DTS
+          ansible.builtin.copy:
+            src: ../files/pwm-pi5.dts
+            dest: /tmp/pwm-pi5.dts
+          register: dts_source
+
+        - name: Compilar e instalar overlay DTBO
+          ansible.builtin.shell: |
+            dtc -I dts -O dtb -o /boot/firmware/overlays/pwm-pi5.dtbo /tmp/pwm-pi5.dts
+          when: dts_source.changed
+      
+    - name: Aumentar o tamanho do SWAP (4GB) para evitar travamentos no colcon build
+      ansible.builtin.lineinfile:
+        path: /etc/dphys-swapfile
+        regexp: '^#?CONF_SWAPSIZE='
+        line: 'CONF_SWAPSIZE=4096'
+        create: yes
+      register: swap_config
+
+    - name: Garantir parametros de fsck no cmdline.txt
+      ansible.builtin.replace:
+        path: /boot/firmware/cmdline.txt
+        regexp: '^((?!.*\b{{ item }}\b).*)$'
+        replace: '\1 {{ item }}'
+      loop:
+        - "fsck.repair=yes"
+        - "fsck.mode=force"
+
+    - name: Aplicar nova configuração de SWAP
+      ansible.builtin.shell: |
+        dphys-swapfile swapoff
+        dphys-swapfile setup
+        dphys-swapfile swapon
+      when: swap_config.changed
+
+    - name: Configurar Overlays e Parâmetros no config.txt
+      ansible.builtin.lineinfile:
+        path: /boot/firmware/config.txt
+        line: "{{ item.line }}"
+        regexp: "{{ item.regexp | default(omit) }}"
+        state: present
+      loop:
+        - { line: "dtparam=audio=off", regexp: "^dtparam=audio=" }
+        - { line: "dtparam=i2c_arm=on", regexp: "^dtparam=i2c_arm=" }
+        - { line: "dtparam=spi=off", regexp: "^dtparam=spi=" }
+        - { line: "camera_auto_detect=0", regexp: "^camera_auto_detect=" }
+        - { line: "dtoverlay=ov5647,cam0,link-frequency=220500000", regexp: "^dtoverlay=ov5647" }
+        - { line: "dtoverlay=pwm-pi5", regexp: "^dtoverlay=pwm-pi5" }
+
+    - name: Configurar regras de udev para Periféricos
+      ansible.builtin.copy:
+        dest: "/etc/udev/rules.d/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: '0644'
+      loop:
+        - { name: '10-ldlidar.rules', content: 'KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0666", GROUP:="dialout", SYMLINK+="ldlidar"' }
+        - { name: '99-esp32.rules', content: 'SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="0666", GROUP="dialout", SYMLINK+="ttyESP32"' }
+        - { name: '12-pwm.rules', content: 'SUBSYSTEM=="pwm", KERNEL=="pwmchip*", ACTION=="add", RUN+="/bin/chgrp -R gpio /sys%p", RUN+="/bin/chmod -R g+w /sys%p"' }
+        - { name: '99-gpio.rules', content: 'SUBSYSTEM=="gpio", KERNEL=="gpiochip*", ACTION=="add", GROUP="gpio", MODE="0660"' }
+        - { name: '99-joy.rules', content: 'KERNEL=="js*", MODE="0666", GROUP="input"' }
+
+    - name: Garantir que o grupo gpio existe
+      ansible.builtin.group:
+        name: gpio
+        state: present
+
+    - name: Adicionar utilizador aos grupos de hardware
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: "dialout,video,i2c,gpio,render,input"
+        append: yes
+
+    - name: Recarregar regras de udev
+      ansible.builtin.shell: |
+        udevadm control --reload-rules
+        udevadm trigger

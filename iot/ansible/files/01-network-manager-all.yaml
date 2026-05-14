@@ -1,5 +1,0 @@
-# Este ficheiro delega a gestão de todas as interfaces ao NetworkManager.
-# Útil para robôs que precisam de gestão dinâmica de Wi-Fi e Hotspot.
-network:
-  version: 2
-  renderer: NetworkManager

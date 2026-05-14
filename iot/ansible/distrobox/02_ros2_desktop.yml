@@ -1,29 +1,49 @@
 ---
-- name: 02 - ROS 2 Desktop e Foxglove (Distrobox)
+- name: 02 - ROS 2 Desktop e Foxglove Studio
   block:
-    - name: Adicionar repositório ROS 2 dentro do container
-      ansible.builtin.command:
-        cmd: |
-          distrobox enter -n speedy-dev -- sudo sh -c '
-          curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu noble main" > /etc/apt/sources.list.d/ros2.list
-          apt-get update'
-      changed_when: false
+    - name: Garantir dependências do repositório
+      ansible.builtin.apt:
+        name: [curl, gnupg2, python3-pip]
+        state: present
+      become: yes
 
-    - name: Instalar ROS 2 Desktop e ferramentas dentro do container
-      ansible.builtin.command:
-        cmd: 'distrobox enter -n speedy-dev -- sh -c "sudo apt-get install -y ros-jazzy-desktop ros-dev-tools ros-jazzy-foxglove-bridge"'
-      changed_when: false
+    - name: Importar a chave GPG do ROS 2
+      ansible.builtin.shell: |
+        curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/ros-archive-keyring.gpg
+      become: yes
 
-    - name: Instalar Foxglove Studio (Link Oficial Permanente)
-      ansible.builtin.command:
-        cmd: 'distrobox enter -n speedy-dev -- sh -c "wget https://get.foxglove.dev/desktop/latest/foxglove-studio-latest-linux-amd64.deb -O /tmp/foxglove.deb && sudo apt install -y /tmp/foxglove.deb && rm /tmp/foxglove.deb"'
-      changed_when: false
+    - name: Adicionar o repositório APT do ROS 2 (Noble)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu noble main"
+        state: present
+        filename: ros2
+      become: yes
 
-    - name: Rosdep init/update dentro do container
-      ansible.builtin.command:
-        cmd: |
-          distrobox enter -n speedy-dev -- sh -c '
-          [ -f /etc/ros/rosdep/sources.list.d/20-default.list ] || sudo rosdep init
-          rosdep update'
-      changed_when: false
+    - name: Instalar ROS 2 Desktop e Foxglove Bridge
+      ansible.builtin.apt:
+        update_cache: yes
+        name: 
+          - ros-jazzy-desktop
+        state: present
+      become: yes
+
+    - name: Baixar pacote Debian do Foxglove Studio
+      ansible.builtin.get_url:
+        url: https://get.foxglove.dev/desktop/latest/foxglove-studio-latest-linux-amd64.deb
+        dest: /tmp/foxglove.deb
+        mode: '0644'
+      become: no
+
+    - name: Instalar Foxglove Studio
+      ansible.builtin.apt:
+        deb: /tmp/foxglove.deb
+        state: present
+      become: yes
+
+    - name: Limpar instalador do Foxglove
+      ansible.builtin.file:
+        path: /tmp/foxglove.deb
+        state: absent
+      become: no

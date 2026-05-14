@@ -1,0 +1,7 @@
+<library path="speedy_hardware_interface">
+  <class name="speedy_control/SpeedyHardwareInterface" type="speedy_control::SpeedyHardwareInterface" base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Native hardware interface for Speedy robot over Raspberry Pi 5 sysfs PWM (RP1 chip).
+    </description>
+  </class>
+</library>

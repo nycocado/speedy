@@ -2,31 +2,81 @@ import os
 import glob
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import LogInfo
+from launch.actions import LogInfo, ExecuteProcess, RegisterEventHandler
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
+from launch.event_handlers import OnProcessExit
 
 def generate_launch_description():
     """
     Script de inicialização da infraestrutura central do Speedy.
-    Orquestra o Agente Micro-ROS, o Foxglove Bridge e a Câmera (libcamera).
+    Orquestra ROS2 Control (RPi PWM), Controladores, Foxglove e Sensores.
     """
     
-    esp_dev = '/dev/ttyESP32'
+    # Paths
+    speedy_description_path = FindPackageShare('speedy_description')
+    speedy_bringup_path = FindPackageShare('speedy_bringup')
+    
+    urdf_path = PathJoinSubstitution([speedy_description_path, 'urdf', 'speedy.urdf.xacro'])
+    controller_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'controllers.yaml'])
+    hardware_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'hardware.yaml'])
+    dataset_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'dataset.yaml'])
+
+    # Gera URDF passando pelo Xacro
+    robot_description_content = Command([
+        PathJoinSubstitution([FindExecutable(name='xacro')]), ' ', 
+        urdf_path, ' ',
+        'hardware_config_file:=', hardware_config_path
+    ])
+    robot_description = {'robot_description': robot_description_content}
 
     # Log informativo via Launch Action
     log_msg = LogInfo(
-        msg=f"\n{'='*60}\n  [SPEEDY BRINGUP] Inicializando Infraestrutura Core...\n"
-            f"  [HARDWARE] ESP32-S3 (udev) em: {esp_dev}\n"
-            f"  [CÂMERA] Stream UDP Nativo: 640x480\n"
-            f"  [TELEMETRIA] Foxglove Bridge: Pronto (Porta 8765)\n{'='*60}\n"
+        msg=f"\n{'='*60}\n  [SPEEDY BRINGUP] Initializing Core Infrastructure...\n"
+            f"  [ROS2 CONTROL] Mode: Direct RPi PWM (SpeedyHardwareInterface)\n"
+            f"  [CONTROL] Bicycle Steering Controller: Enabled\n"
+            f"  [TELEMETRY] Foxglove Bridge: Ready (Port 8765)\n{'='*60}\n"
     )
 
-    # Nó do Agente Micro-ROS (Ponte Serial)
-    micro_ros_agent = Node(
-        package='micro_ros_agent',
-        executable='micro_ros_agent',
-        name='micro_ros_agent',
-        arguments=['serial', '--dev', esp_dev, '-b', '921600'],
-        output='screen'
+    # 1. Robot State Publisher (publica o URDF)
+    robot_state_pub_node = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='both',
+        parameters=[robot_description]
+    )
+
+    # 2. Controller Manager (O motor do ros2_control)
+    controller_manager = Node(
+        package='controller_manager',
+        executable='ros2_control_node',
+        parameters=[robot_description, controller_config_path, hardware_config_path],
+        output='both'
+    )
+
+    # 3. Spawner dos Controladores
+    joint_state_broadcaster_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_state_broadcaster', '--controller-manager', '/controller_manager'],
+    )
+
+    bicycle_steering_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['bicycle_steering_controller', '--controller-manager', '/controller_manager', '--inactive'],
+    )
+
+    manual_steering_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['manual_steering_controller', '--controller-manager', '/controller_manager'],
+    )
+
+    manual_drive_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['manual_drive_controller', '--controller-manager', '/controller_manager'],
     )
 
     # Nó do Foxglove Bridge (Servidor para Visualização)
@@ -51,7 +101,9 @@ def generate_launch_description():
             'width': 640,
             'height': 480,
             'format': 'YUYV',
-            'frame_id': 'camera_link'
+            'vflip': True,
+            'frame_id': 'camera_link',
+            'camera_info_url': 'package://speedy_bringup/config/camera_info.yaml'
         }],
         output='screen'
     )
@@ -76,10 +128,25 @@ def generate_launch_description():
         }]
     )
 
+    # Coletor de Dataset (Botão X)
+    dataset_collector_node = Node(
+        package='speedy_dataset',
+        executable='collector',
+        name='dataset_collector',
+        parameters=[dataset_config_path],
+        output='screen'
+    )
+
     return LaunchDescription([
         log_msg,
-        micro_ros_agent,
+        robot_state_pub_node,
+        controller_manager,
+        joint_state_broadcaster_spawner,
+        bicycle_steering_controller_spawner,
+        manual_steering_controller_spawner,
+        manual_drive_controller_spawner,
         foxglove_bridge,
         camera_node,
-        ldlidar_node
+        ldlidar_node,
+        dataset_collector_node
     ])

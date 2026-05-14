@@ -1,0 +1,10 @@
+---
+- name: 11 - Otimização de Agendamento e Performance
+  block:
+    - name: Permitir que o grupo do usuário aloque prioridades de Tempo Real e MemLock
+      ansible.builtin.copy:
+        dest: /etc/security/limits.d/99-realtime.conf
+        content: |
+          @{{ ansible_user }} - rtprio 99
+          @{{ ansible_user }} - memlock unlimited
+        mode: '0644'

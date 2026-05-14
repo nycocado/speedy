@@ -1,0 +1,13 @@
+---
+- name: 09 - Compilar Workspace
+  block:
+    - name: Compilar o Workspace Nativamente
+      ansible.builtin.shell: |
+        source /opt/ros/jazzy/setup.bash
+        colcon build \
+          --cmake-args \
+            -DCMAKE_BUILD_TYPE=Release
+      args:
+        chdir: "/home/{{ ansible_user }}/speedy_ws"
+        executable: /bin/bash
+      become: no
