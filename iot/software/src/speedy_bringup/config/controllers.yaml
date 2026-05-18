@@ -34,8 +34,9 @@ bicycle_steering_controller:
     steering_joints_names: [steering_joint]
 
     # Dimensões (Speedy)
-    wheelbase: 0.15 
-    traction_wheel_radius: 0.03
+    wheelbase: 0.251 
+    track_width: 0.139
+    traction_wheel_radius: 0.0325
 
     # Limites
     linear.x.has_velocity_limits: true
@@ -43,8 +44,8 @@ bicycle_steering_controller:
     linear.x.min_velocity: -1.0
     
     angular.z.has_position_limits: true
-    angular.z.max_position: 0.785398
-    angular.z.min_position: -0.785398
+    angular.z.max_position: 0.4363
+    angular.z.min_position: -0.4363
 
     # Odometria e Entrada
     use_stamped_vel: true

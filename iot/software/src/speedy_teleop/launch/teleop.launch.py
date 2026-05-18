@@ -11,21 +11,20 @@ def generate_launch_description():
     """
 
     # Obtendo o diretorio de instalacao para carregar o YAML de forma segura
-    teleop_dir = get_package_share_directory('speedy_teleop')
-    teleop_config_path = os.path.join(teleop_dir, 'config', 'teleop.yaml')
-
-    # Lendo limite de esterçamento dinamicamente do controllers.yaml
     bringup_dir = get_package_share_directory('speedy_bringup')
+    teleop_config_path = os.path.join(bringup_dir, 'config', 'teleop.yaml')
     config_path = os.path.join(bringup_dir, 'config', 'controllers.yaml')
     
     max_steer = 0.785 # default fallback
     max_linear = 1.0 # default fallback
+    wheel_radius = 0.0325 # default fallback
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
             params = config['bicycle_steering_controller']['ros__parameters']
             max_steer = float(params.get('angular.z.max_position', 0.785))
             max_linear = float(params.get('linear.x.max_velocity', 1.0))
+            wheel_radius = float(params.get('traction_wheel_radius', 0.0325))
     except Exception as e:
         print(f"[Aviso] Nao foi possivel ler os limites do controllers.yaml. Usando defaults. Erro: {e}")
 
@@ -34,6 +33,7 @@ def generate_launch_description():
         msg=f"\n{'='*60}\n  [SPEEDY TELEOP] Initializing Manual Control System...\n"
             f"  - Automatic Steering Limit: {max_steer} rad\n"
             f"  - Velocity Limit: {max_linear} m/s\n"
+            f"  - Wheel Radius: {wheel_radius} m\n"
     )
 
     # Nó do Joystick
@@ -62,7 +62,8 @@ def generate_launch_description():
             teleop_config_path, 
             {
                 'max_steer_angle': max_steer,
-                'max_velocity': max_linear
+                'max_velocity': max_linear,
+                'wheel_radius': wheel_radius
             }
         ],
         output='screen'

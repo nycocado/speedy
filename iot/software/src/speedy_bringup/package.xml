@@ -18,6 +18,7 @@
   <exec_depend>foxglove_bridge</exec_depend>
   <exec_depend>speedy_teleop</exec_depend>
   <exec_depend>speedy_control</exec_depend>
+  <exec_depend>mpu9250driver</exec_depend>
 
   <!-- Dependências apenas para execução de testes unitários -->
   <test_depend>ament_lint_auto</test_depend>

@@ -23,6 +23,7 @@ setup(
     license='Proprietary',
     entry_points={
         'console_scripts': [
+            'calibration_node = speedy_bringup.scripts.calibration_node:main',
         ],
     },
 )

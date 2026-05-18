@@ -15,6 +15,7 @@
 #include "rclcpp_lifecycle/state.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+#include <std_msgs/msg/float32_multi_array.hpp>
 #include <control_toolbox/pid.hpp>
 #include <gpiod.hpp>
 
@@ -89,10 +90,10 @@ private:
 
     // PID e Filtros
     struct { 
-        double kp=1.5; 
-        double ki=0.0; 
-        double kd=0.1; 
-        double filter_alpha=0.2; 
+        double kp=0.6; 
+        double ki=0.4; 
+        double kd=0.0; 
+        double filter_alpha=0.02; 
         double deadband_m_s=0.01; 
     } cfg_pid_;
 
@@ -100,6 +101,7 @@ private:
     struct { 
         int64_t period_ns=50000; 
         double min_effort=0.05; 
+        double max_effort=1.0;
         int64_t deadband_ms=10; 
         bool invert_direction=false; 
     } cfg_motor_;
@@ -111,30 +113,38 @@ private:
         double max_deflection_pulse_ms=1.0; 
         double max_angle_left_deg=45.0;
         double max_angle_right_deg=45.0;
+        double nominal_range_deg=45.0;
         double trim_deg=0.0;
+        double poly_a2=0.000333;
+        double poly_a1=0.028469;
+        double poly_a0=1.481;
+        bool use_polynomial=true;
         double max_speed_deg_per_sec=0.0; 
         bool invert_direction=false; 
     } cfg_steer_;
 
     // Estados de Runtime
     double hw_velocity_cmd_ = 0.0, hw_velocity_state_ = 0.0;
+    double hw_position_state_ = 0.0;
     double hw_steering_cmd_ = 0.0, hw_steering_state_ = 0.0;
     
     SafePWM pwm_motor_fwd_, pwm_motor_rev_, pwm_servo_;
     control_toolbox::Pid pid_controller_;
+    
     double filtered_velocity_ = 0.0;
     int8_t last_direction_ = 0;
     bool in_deadband_ = false;
     rclcpp::Time deadband_start_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
     double current_steering_deg_ = 0.0;
-
-    // Nó de Parâmetros Dinâmicos
+    
+    // Nó de Parâmetros Dinâmicos e Debug
     rclcpp::Node::SharedPtr param_node_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr debug_pub_;
     std::thread param_thread_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
     std::atomic<bool> stop_threads_{false};
     std::atomic<bool> update_pid_{false};
-    double new_kp_=1.5, new_ki_=0.0, new_kd_=0.1;
+    double new_kp_=0.6, new_ki_=0.4, new_kd_=0.0;
 
     // Sensor Hall e Enable (GPIOd)
     std::unique_ptr<gpiod::line_request> hall_request_;

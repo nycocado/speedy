@@ -7,6 +7,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(control_toolbox REQUIRED)
@@ -28,6 +29,7 @@ target_link_libraries(speedy_hardware_interface
 )
 ament_target_dependencies(speedy_hardware_interface
   rclcpp
+  std_msgs
   hardware_interface
   pluginlib
   control_toolbox

@@ -3,6 +3,5 @@ racing_teleop_node:
     axis_steering: 0
     axis_throttle: 4
     axis_brake: 5
-    scale_linear: 1.0
     deadzone: 0.05
-    # scale_steering is injected dynamically at launch time based on URDF bounds
+    # Os limites de velocidade e escala são injetados via launch do controllers.yaml
