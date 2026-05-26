@@ -1,0 +1,13 @@
+[Unit]
+Description=Daemon PIGPIO (GPIO via DMA no Raspberry Pi)
+After=local-fs.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/pigpiod
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=3
+
+[Install]
+WantedBy=multi-user.target

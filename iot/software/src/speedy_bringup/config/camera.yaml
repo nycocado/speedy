@@ -1,0 +1,9 @@
+speedy_camera:
+  ros__parameters:
+    width: 640
+    height: 480
+    format: YUYV          # captura YUYV; o line_detector extrai o canal Y (mono8) via cv_bridge
+    vflip: true
+    frame_id: camera_link
+    camera_info_url: package://speedy_bringup/config/camera_info.yaml
+    jpeg_quality: 70      # qualidade do /image_raw/compressed (stream Foxglove); 95 saturava o hotspot

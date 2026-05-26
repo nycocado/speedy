@@ -30,7 +30,9 @@ case "$1" in
             nmcli con modify "$CON_NAME" connection.autoconnect yes
             nmcli con up "$CON_NAME"
         else
-            nmcli dev wifi hotspot ifname "$INTERFACE" ssid "$SSID" password "$PASSWORD" con-name "$CON_NAME" band bg channel 6
+            # 5GHz (band a, ch36) p/ casar com o perfil hotspot.nmconnection e ter banda
+            # decente p/ a câmera. 2.4GHz/g (band bg) capava o link e causava engasgo.
+            nmcli dev wifi hotspot ifname "$INTERFACE" ssid "$SSID" password "$PASSWORD" con-name "$CON_NAME" band a channel 36
             nmcli con modify "$CON_NAME" connection.autoconnect yes
         fi
 

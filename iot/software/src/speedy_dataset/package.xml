@@ -2,10 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>speedy_dataset</name>
-  <version>0.0.1</version>
+  <version>1.0.0</version>
   <description>Coletor de fotos para treinamento de IA do robô Speedy</description>
-  <maintainer email="speedy@todo.todo">speedy</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="nycolascanutto@gmail.com">nycocado</maintainer>
+  <license>Proprietary</license>
 
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>

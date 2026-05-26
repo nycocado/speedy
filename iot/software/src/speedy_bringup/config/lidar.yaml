@@ -1,0 +1,23 @@
+ldlidar_node:
+  ros__parameters:
+    product_name: LDLiDAR_LD19
+    laser_scan_topic_name: scan
+    point_cloud_2d_topic_name: pointcloud2d
+    frame_id: laser_link
+    port_name: /dev/ldlidar
+    serial_baudrate: 230400
+    laser_scan_dir: true
+
+    # Corte de 180°: mascara (NaN) a metade traseira do scan. O driver corta no
+    # ângulo CRU do lidar [min,max] em graus, assumindo 0°=frente do robô (mesma
+    # convenção do exemplo do driver, que centra o corte em 180°). Mantém só a
+    # frente [-90°,+90°] -> evita que coisas atrás confundam o rf2o (scan matching)
+    # e o Follow-The-Gap, e reduz pela metade os pontos processados.
+    # CALIBRAR contra a montagem física: ver o /scan no Foxglove e confirmar que a
+    # frente não foi cortada (se cortou, o lidar 0° não aponta p/ frente -> rodar).
+    enable_angle_crop_func: true
+    angle_crop_min: 90.0
+    angle_crop_max: 270.0
+
+    range_min: 0.02
+    range_max: 25.0

@@ -1,9 +1,15 @@
 ---
-- name: Configuração Interna do Distrobox (Software e Shell)
+- name: "Distrobox dev [A]: Criar container speedy-dev"
+  hosts: host
+  tags: [container, setup]
+  tasks:
+    - name: "Passo 01: Container de Desenvolvimento"
+      ansible.builtin.include_tasks: 01_container.yml
+
+- name: "Distrobox dev [B]: Provisionar software dentro do speedy-dev"
   hosts: dev
   tasks:
-    - name: "Passo 1: Shell e Dotfiles"
-      ansible.builtin.include_tasks: 01_shell.yml
-
-    - name: "Passo 2: ROS 2 Desktop e Foxglove"
-      ansible.builtin.include_tasks: 02_ros2_desktop.yml
+    - name: "Passo 02: Shell e Dotfiles"
+      ansible.builtin.include_tasks: 02_shell.yml
+    - name: "Passo 03: ROS 2 Desktop e Foxglove"
+      ansible.builtin.include_tasks: 03_ros2_desktop.yml

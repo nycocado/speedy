@@ -22,4 +22,6 @@
           - "--exclude=install"
           - "--exclude=log"
           - "--exclude=__pycache__"
+          - "--exclude=deps/imu_tools/rviz_imu_plugin"
+          - "--exclude=deps/vision_msgs/vision_msgs_rviz_plugins"
       become: no

@@ -4,5 +4,5 @@ dataset_collector:
     burst_period: 0.5
     button_index: 3
     undistort: true
-    grayscale: false
+    grayscale: true
 

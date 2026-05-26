@@ -1,6 +1,6 @@
 image_width: 640
 image_height: 480
-camera_name: speedy_camera
+camera_name: ov5647__base_soc_i2c0mux_i2c_1_ov5647_36_640x480
 camera_matrix:
   rows: 3
   cols: 3

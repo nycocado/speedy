@@ -1,0 +1,46 @@
+mpu6050_sensor:
+  ros__parameters:
+    # Full Scale Range do gyro: 0=±250  1=±500  2=±1000  3=±2000 deg/s
+    gyro_fs_sel: 0
+    # Full Scale Range do accel: 0=±2  1=±4  2=±8  3=±16 g
+    accel_afs_sel: 0
+    # DLPF (filtro passa-baixo do chip): 0=260/256Hz ... 6=5/5Hz
+    dlpf_cfg: 0
+    # Clock: 0=RC interno  1=PLL gyro X (recomendado)  2=gyro Y  3=gyro Z  ...
+    clock_src: 1
+
+    # Taxa de publicação (Hz). 100 era oversampling 3-5x: EKF roda a 30Hz e o reactive
+    # amostra a 20Hz. 50Hz corta a desserialização em todos os assinantes (EKF, reactive).
+    publish_rate_hz: 50.0
+
+    # --- I2C / frame ---
+    i2c_bus: "/dev/i2c-1"
+    i2c_address: 0x68
+    frame_id: "imu_link"
+
+    # --- DMP ---
+    # use_dmp=true ativa o Digital Motion Processor do chip (orientação fundida no
+    # hardware, com auto-calibração contínua do bias do gyro → yaw estável).
+    # MODO HÍBRIDO: a orientação (quaternion) vem do DMP, mas gyro/accel são lidos
+    # dos REGISTOS (escala correta do datasheet), porque o decode dos sensores do
+    # pacote FIFO do MotionApps 2.0 vem com escala errada (gyro baixo, accel ~metade).
+    # Se a init do DMP falhar, recua automaticamente para modo raw.
+    use_dmp: true
+
+    # Calibração de bias do gyro no arranque (NÃO é um filtro de sinal: é um offset
+    # one-shot medido com o robô parado, que remove o drift estático). Só corre em
+    # modo raw (em DMP o chip trata do bias). Põe 0 para desativar.
+    calibrate_samples: 200
+
+    # Offsets manuais (somados ao bias calibrado). Gyro [deg/s], accel [m/s²].
+    gyro_x_offset: 0.0
+    gyro_y_offset: 0.0
+    gyro_z_offset: 0.0
+    accel_x_offset: 0.0
+    accel_y_offset: 0.0
+    accel_z_offset: 0.0
+
+    # Ruído do sensor → variância na diagonal das covariâncias (essencial p/ EKF/Madgwick).
+    angular_velocity_stddev: 0.02     # rad/s
+    linear_acceleration_stddev: 0.20  # m/s²
+    orientation_stddev: 0.05          # rad (só relevante em modo DMP)

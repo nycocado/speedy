@@ -6,218 +6,293 @@
   <!-- ============================================== -->
   <xacro:arg name="hardware_config_file" default="" />
   <xacro:property name="hw_config_path" value="$(arg hardware_config_file)" />
-  
-  <!-- Carrega parâmetros do hardware.yaml se o arquivo for fornecido -->
+
   <xacro:if value="${hw_config_path != ''}">
     <xacro:property name="hw_config" value="${xacro.load_yaml(hw_config_path)['speedy_hardware']['ros__parameters']}" />
-    <!-- Converte graus para radianos pro URDF -->
-    <xacro:property name="max_steer_angle_left" value="${hw_config['max_steering_angle_left_deg'] * (pi / 180.0)}" />
+    <xacro:property name="max_steer_angle_left"  value="${hw_config['max_steering_angle_left_deg']  * (pi / 180.0)}" />
     <xacro:property name="max_steer_angle_right" value="${hw_config['max_steering_angle_right_deg'] * (pi / 180.0)}" />
+    <xacro:property name="wheelbase"    value="${hw_config['wheelbase']}" />
+    <xacro:property name="wheel_radius" value="${hw_config['wheel_radius']}" />
   </xacro:if>
   <xacro:unless value="${hw_config_path != ''}">
-    <xacro:property name="max_steer_angle_left" value="0.785398" />
+    <xacro:property name="max_steer_angle_left"  value="0.785398" />
     <xacro:property name="max_steer_angle_right" value="0.785398" />
+    <xacro:property name="wheelbase"    value="0.251" />
+    <xacro:property name="wheel_radius" value="0.0325" />
+    <xacro:property name="hw_config" value="${dict()}" />
   </xacro:unless>
 
-  <!-- Dimensões Físicas -->
-  <xacro:property name="chassis_length" value="0.252" />
-  <xacro:property name="chassis_width"  value="0.166" />
-  <xacro:property name="chassis_height" value="0.0755" />
-  
-  <xacro:property name="bumper_length" value="0.057" />
-  <xacro:property name="bumper_width"  value="0.137" />
-  <xacro:property name="bumper_height" value="0.044" />
-
-  <xacro:property name="wheel_radius" value="0.0325" /> 
-  <xacro:property name="wheel_width"  value="0.026" />
-  <xacro:property name="wheelbase"    value="0.251" /> 
-  <xacro:property name="track_width"  value="0.139" /> 
-  <xacro:property name="chassis_z_offset" value="0.017" /> 
-
-  <!-- Materiais Visuais -->
-  <material name="white">
-    <color rgba="0.9 0.9 0.9 1.0"/>
-  </material>
-  <material name="blue">
-    <color rgba="0.1 0.3 0.8 1.0"/>
-  </material>
-  <material name="black">
-    <color rgba="0.15 0.15 0.15 1.0"/>
-  </material>
-
   <!-- ============================================== -->
-  <!-- DESCRIÇÃO CINEMÁTICA E VISUAL                  -->
+  <!-- DIMENSÕES FÍSICAS (metros)                     -->
+  <!--   Fonte: medições físicas do chassi            -->
+  <!--   wheelbase e wheel_radius: hardware.yaml      -->
   <!-- ============================================== -->
 
-  <!-- Chassi Base -->
-  <link name="base_link">
+  <!-- Chassi principal -->
+  <xacro:property name="chassis_length"   value="0.259"  />  <!-- 38.5 total - 2*6.3 bumper = 25.9 -->
+  <xacro:property name="chassis_height"   value="0.080"  />  <!-- medido pelo usuário -->
+  <xacro:property name="chassis_width"    value="0.166"  />
+
+  <!-- Caixa do LiDAR no topo do chassi -->
+  <xacro:property name="lidar_box_l"       value="0.130" />
+  <xacro:property name="lidar_box_w"       value="0.090" />
+  <xacro:property name="lidar_box_h"       value="0.065" />
+
+  <!-- Rodas -->
+  <xacro:property name="wheel_thickness"  value="0.026"  />
+  <!-- distância do centro do chassi ao centro da roda (eixo Y) -->
+  <xacro:property name="half_track"       value="0.0695" />
+  <!-- quanto a roda projeta para cima, acima do topo do chassi -->
+  <xacro:property name="wheel_projection" value="0.020"  />
+
+  <!-- Pára-choques -->
+  <xacro:property name="bumper_length"    value="0.063"  />  <!-- medido pelo usuário -->
+  <xacro:property name="bumper_height"    value="0.050"  />  <!-- medido pelo usuário -->
+  <xacro:property name="bumper_width"     value="0.137"  />
+  <!-- Distância do eixo da roda até a extremidade do pára-choque (medido: 6.5cm) -->
+  <xacro:property name="wheel_to_bumper_edge" value="0.065" />
+
+  <!-- ============================================== -->
+  <!-- DESCRIÇÃO CINEMÁTICA                           -->
+  <!-- ============================================== -->
+
+  <!-- base_link na altura do eixo das rodas, no ponto médio entre eixos -->
+  <link name="base_link" />
+
+  <!-- Eixo traseiro (tração) -->
+  <link name="drive_wheel_link" />
+  <joint name="drive_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="drive_wheel_link"/>
+    <!-- Centraliza visualmente o wheelbase no chassi -->
+    <origin xyz="${-wheelbase/2.0} 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Eixo dianteiro (direção) -->
+  <link name="steering_link" />
+  <joint name="steering_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="steering_link"/>
+    <origin xyz="${wheelbase/2.0} 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${-max_steer_angle_right}" upper="${max_steer_angle_left}" effort="10.0" velocity="5.0"/>
+  </joint>
+
+  <!-- ============================================== -->
+  <!-- GEOMETRIA VISUAL E DE COLISÃO                  -->
+  <!-- ============================================== -->
+
+  <!-- Chassi principal -->
+  <link name="chassis_link">
     <visual>
-      <origin xyz="-0.006 0 ${chassis_z_offset + (chassis_height/2)}" rpy="0 0 0"/>
       <geometry>
         <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
       </geometry>
-      <material name="white"/>
+      <material name="grey">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
     </visual>
     <collision>
-      <origin xyz="-0.006 0 ${chassis_z_offset + (chassis_height/2)}" rpy="0 0 0"/>
       <geometry>
         <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
       </geometry>
     </collision>
   </link>
 
-  <!-- Para-choque Dianteiro -->
-  <link name="front_bumper_link">
-    <visual>
-      <origin xyz="${(chassis_length/2) + (bumper_length/2) - 0.006} 0 ${chassis_z_offset + (bumper_height/2)}" rpy="0 0 0"/>
-      <geometry>
-        <box size="${bumper_length} ${bumper_width} ${bumper_height}"/>
-      </geometry>
-      <material name="blue"/>
-    </visual>
-  </link>
-  <joint name="front_bumper_joint" type="fixed">
+  <!-- centro do chassi: o fundo do chassi fica (wheel_radius - wheel_projection) acima do base_link -->
+  <joint name="chassis_joint" type="fixed">
     <parent link="base_link"/>
-    <child link="front_bumper_link"/>
+    <child link="chassis_link"/>
+    <origin xyz="0 0 ${wheel_radius - wheel_projection + chassis_height/2.0}" rpy="0 0 0"/>
   </joint>
 
-  <!-- Para-choque Traseiro -->
-  <link name="rear_bumper_link">
+  <!-- Caixa do LiDAR no topo -->
+  <link name="lidar_box_link">
     <visual>
-      <origin xyz="${-(chassis_length/2) - (bumper_length/2) - 0.006} 0 ${chassis_z_offset + (bumper_height/2)}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${lidar_box_l} ${lidar_box_w} ${lidar_box_h}"/>
+      </geometry>
+      <material name="grey"/>
+    </visual>
+  </link>
+  <joint name="lidar_box_joint" type="fixed">
+    <parent link="chassis_link"/>
+    <child link="lidar_box_link"/>
+    <origin xyz="0 0 ${chassis_height/2.0 + lidar_box_h/2.0}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Pára-choque dianteiro -->
+  <link name="bumper_link">
+    <visual>
       <geometry>
         <box size="${bumper_length} ${bumper_width} ${bumper_height}"/>
       </geometry>
-      <material name="blue"/>
+      <material name="dark_grey">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+      </material>
     </visual>
+    <collision>
+      <geometry>
+        <box size="${bumper_length} ${bumper_width} ${bumper_height}"/>
+      </geometry>
+    </collision>
   </link>
+
+  <joint name="bumper_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="bumper_link"/>
+    <origin xyz="${chassis_length/2.0 + bumper_length/2.0} 0 ${wheel_radius - wheel_projection + bumper_height/2.0}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Pára-choque traseiro -->
+  <link name="rear_bumper_link">
+    <visual>
+      <geometry>
+        <box size="${bumper_length} ${bumper_width} ${bumper_height}"/>
+      </geometry>
+      <material name="dark_grey">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${bumper_length} ${bumper_width} ${bumper_height}"/>
+      </geometry>
+    </collision>
+  </link>
+
   <joint name="rear_bumper_joint" type="fixed">
     <parent link="base_link"/>
     <child link="rear_bumper_link"/>
+    <origin xyz="${-(chassis_length/2.0 + bumper_length/2.0)} 0 ${wheel_radius - wheel_projection + bumper_height/2.0}" rpy="0 0 0"/>
   </joint>
 
-  <!-- Sensor IMU MPU6050 -->
-  <link name="imu_link">
+  <!-- Roda traseira esquerda (+Y) -->
+  <link name="rear_left_wheel_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.020 0.015 0.002"/>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
       </geometry>
-      <material name="black"/>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
     </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+    </collision>
   </link>
-  <!-- Pinos para a esquerda: Rotação em Z (yaw) pode precisar de ajuste dependendo de como a placa mapeia X/Y -->
+
+  <joint name="rear_left_wheel_joint" type="fixed">
+    <parent link="drive_wheel_link"/>
+    <child link="rear_left_wheel_link"/>
+    <origin xyz="0 ${half_track} 0" rpy="${-pi/2.0} 0 0"/>
+  </joint>
+
+  <!-- Roda traseira direita (−Y) -->
+  <link name="rear_right_wheel_link">
+    <visual>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rear_right_wheel_joint" type="fixed">
+    <parent link="drive_wheel_link"/>
+    <child link="rear_right_wheel_link"/>
+    <origin xyz="0 ${-half_track} 0" rpy="${-pi/2.0} 0 0"/>
+  </joint>
+
+  <!-- Roda dianteira esquerda (+Y) -->
+  <link name="front_left_wheel_link">
+    <visual>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="front_left_wheel_joint" type="continuous">
+    <parent link="steering_link"/>
+    <child link="front_left_wheel_link"/>
+    <origin xyz="0 ${half_track} 0" rpy="${-pi/2.0} 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- Roda dianteira direita (−Y) -->
+  <link name="front_right_wheel_link">
+    <visual>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="front_right_wheel_joint" type="continuous">
+    <parent link="steering_link"/>
+    <child link="front_right_wheel_link"/>
+    <origin xyz="0 ${-half_track} 0" rpy="${-pi/2.0} 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- ============================================== -->
+  <!-- SENSORES                                        -->
+  <!--   x: frente(+) / trás(−) desde base_link       -->
+  <!--   y: esquerda(+) / direita(−)                  -->
+  <!--   z: altura desde base_link (eixo das rodas)   -->
+  <!-- ============================================== -->
+
+  <!-- LiDAR — centro do veículo, 8.5cm acima do topo do chassi -->
+  <link name="laser_link"/>
+  <joint name="laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="laser_link"/>
+    <origin xyz="0.0 0.0 0.1775" rpy="0 0 0"/>
+  </joint>
+
+  <!-- IMU (MPU6050) — centro do chassi, ao nível do topo; pinos virados para trás -->
+  <!-- rpy Z=pi: chip com pinos a Sul em padrão tem X a direita; com pinos para trás (−X) → rodar 180° em yaw -->
+  <link name="imu_link"/>
   <joint name="imu_joint" type="fixed">
     <parent link="base_link"/>
     <child link="imu_link"/>
-    <origin xyz="0 0 ${chassis_z_offset + chassis_height}" rpy="0 0 0"/>
+    <origin xyz="0.0 0.0 0.0925" rpy="0 0 ${pi}"/>
   </joint>
 
-  <!-- Juntas Virtuais (Reais pro ros2_control) -->
-  <link name="drive_wheel_link" />
-  <joint name="drive_joint" type="continuous">
+  <!-- Câmara — ~1cm atrás da junção chassi-parachoque frontal, 8cm acima do topo do parachoque -->
+  <!-- Se câmara inclinada para baixo: ajustar pitch (ex: rpy="0 0.26 0" para ~15°) -->
+  <link name="camera_link"/>
+  <joint name="camera_joint" type="fixed">
     <parent link="base_link"/>
-    <child link="drive_wheel_link"/>
-    <origin xyz="${-wheelbase/2} 0 0" rpy="0 0 0"/> 
-    <axis xyz="0 1 0"/>
-  </joint>
-
-  <link name="steering_link" />
-  <joint name="steering_joint" type="revolute">
-    <parent link="base_link"/>
-    <child link="steering_link"/>
-    <origin xyz="${wheelbase/2} 0 0" rpy="0 0 0"/> 
-    <axis xyz="0 0 1"/>
-    <limit lower="${-max_steer_angle_right}" upper="${max_steer_angle_left}" effort="10.0" velocity="5.0"/>
-  </joint>
-
-  <!-- Rodas Físicas Visuais (Mimics) -->
-  <link name="rl_wheel_link">
-    <visual>
-      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
-      <geometry>
-        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
-      </geometry>
-      <material name="black"/>
-    </visual>
-  </link>
-  <joint name="rl_wheel_joint" type="continuous">
-    <parent link="base_link"/>
-    <child link="rl_wheel_link"/>
-    <origin xyz="${-wheelbase/2} ${track_width/2} 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-    <mimic joint="drive_joint" multiplier="1.0" offset="0.0"/>
-  </joint>
-
-  <link name="rr_wheel_link">
-    <visual>
-      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
-      <geometry>
-        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
-      </geometry>
-      <material name="black"/>
-    </visual>
-  </link>
-  <joint name="rr_wheel_joint" type="continuous">
-    <parent link="base_link"/>
-    <child link="rr_wheel_link"/>
-    <origin xyz="${-wheelbase/2} ${-track_width/2} 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-    <mimic joint="drive_joint" multiplier="1.0" offset="0.0"/>
-  </joint>
-
-  <link name="fl_steer_link" />
-  <joint name="fl_steer_joint" type="revolute">
-    <parent link="base_link"/>
-    <child link="fl_steer_link"/>
-    <origin xyz="${wheelbase/2} ${track_width/2} 0" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="${-max_steer_angle_right}" upper="${max_steer_angle_left}" effort="10.0" velocity="5.0"/>
-    <mimic joint="steering_joint" multiplier="1.0" offset="0.0"/>
-  </joint>
-
-  <link name="fl_wheel_link">
-    <visual>
-      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
-      <geometry>
-        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
-      </geometry>
-      <material name="black"/>
-    </visual>
-  </link>
-  <joint name="fl_wheel_joint" type="continuous">
-    <parent link="fl_steer_link"/>
-    <child link="fl_wheel_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-    <mimic joint="drive_joint" multiplier="1.0" offset="0.0"/>
-  </joint>
-
-  <link name="fr_steer_link" />
-  <joint name="fr_steer_joint" type="revolute">
-    <parent link="base_link"/>
-    <child link="fr_steer_link"/>
-    <origin xyz="${wheelbase/2} ${-track_width/2} 0" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="${-max_steer_angle_right}" upper="${max_steer_angle_left}" effort="10.0" velocity="5.0"/>
-    <mimic joint="steering_joint" multiplier="1.0" offset="0.0"/>
-  </joint>
-
-  <link name="fr_wheel_link">
-    <visual>
-      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
-      <geometry>
-        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
-      </geometry>
-      <material name="black"/>
-    </visual>
-  </link>
-  <joint name="fr_wheel_joint" type="continuous">
-    <parent link="fr_steer_link"/>
-    <child link="fr_wheel_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-    <mimic joint="drive_joint" multiplier="1.0" offset="0.0"/>
+    <child link="camera_link"/>
+    <origin xyz="0.116 0.0 0.104" rpy="0 0 0"/>
   </joint>
 
   <!-- ============================================== -->
@@ -226,47 +301,51 @@
   <ros2_control name="SpeedySystem" type="system">
     <hardware>
       <plugin>speedy_control/SpeedyHardwareInterface</plugin>
-      
-      <!-- Parâmetros passados via URDF para a Hardware Interface -->
+
       <xacro:if value="${hw_config_path != ''}">
         <param name="pin_motor_en_1">${hw_config['pin_motor_en_1']}</param>
         <param name="pin_motor_en_2">${hw_config['pin_motor_en_2']}</param>
-        <param name="pin_motor_fwd">${hw_config['pin_motor_fwd']}</param>
         <param name="pin_motor_fwd_ch">${hw_config['pin_motor_fwd_ch']}</param>
-        <param name="pin_motor_rev">${hw_config['pin_motor_rev']}</param>
         <param name="pin_motor_rev_ch">${hw_config['pin_motor_rev_ch']}</param>
         <param name="pin_servo">${hw_config['pin_servo']}</param>
-        <param name="pin_servo_ch">${hw_config['pin_servo_ch']}</param>
         <param name="pin_hall">${hw_config['pin_hall']}</param>
-        
+        <param name="pin_hall_en">${hw_config['pin_hall_en']}</param>
+        <param name="pin_hall_fl">${hw_config['pin_hall_fl']}</param>
+        <param name="pin_hall_fr">${hw_config['pin_hall_fr']}</param>
+
         <param name="motor_period_ns">${hw_config['motor_period_ns']}</param>
         <param name="motor_min_effort">${hw_config['motor_min_effort']}</param>
         <param name="motor_deadband_ms">${hw_config['motor_deadband_ms']}</param>
         <param name="motor_invert_direction">${hw_config['motor_invert_direction']}</param>
-        
-        <param name="steering_pwm_freq_hz">${hw_config['steering_pwm_freq_hz']}</param>
+
         <param name="steering_center_pulse_ms">${hw_config['steering_center_pulse_ms']}</param>
         <param name="steering_max_deflection_ms">${hw_config['steering_max_deflection_ms']}</param>
         <param name="steering_max_speed_deg_per_sec">${hw_config['steering_max_speed_deg_per_sec']}</param>
-        <param name="steering_use_polynomial">${hw_config['steering_use_polynomial']}</param>
-        <param name="steering_poly_a2">${hw_config['steering_poly_a2']}</param>
-        <param name="steering_poly_a1">${hw_config['steering_poly_a1']}</param>
-        <param name="steering_poly_a0">${hw_config['steering_poly_a0']}</param>
         <param name="max_steering_angle_left_deg">${hw_config['max_steering_angle_left_deg']}</param>
         <param name="max_steering_angle_right_deg">${hw_config['max_steering_angle_right_deg']}</param>
         <param name="steering_trim_deg">${hw_config['steering_trim_deg']}</param>
         <param name="steering_invert_direction">${hw_config['steering_invert_direction']}</param>
-        
+        <param name="steering_use_polynomial">${hw_config['steering_use_polynomial']}</param>
+        <param name="steering_poly_a0">${hw_config['steering_poly_a0']}</param>
+        <param name="steering_poly_a1">${hw_config['steering_poly_a1']}</param>
+        <param name="steering_poly_a2">${hw_config['steering_poly_a2']}</param>
+
         <param name="pid_kp">${hw_config['pid_kp']}</param>
         <param name="pid_ki">${hw_config['pid_ki']}</param>
         <param name="pid_kd">${hw_config['pid_kd']}</param>
+        <param name="pid_deadband_m_s">${hw_config['pid_deadband_m_s']}</param>
         <param name="velocity_filter_alpha">${hw_config['velocity_filter_alpha']}</param>
+        <param name="velocity_zero_timeout_ms">${hw_config['velocity_zero_timeout_ms']}</param>
+        <param name="max_linear_velocity">${hw_config['max_linear_velocity']}</param>
+        <param name="velocity_feedforward">${hw_config['velocity_feedforward']}</param>
         <param name="wheel_radius">${hw_config['wheel_radius']}</param>
+        <param name="wheelbase">${hw_config['wheelbase']}</param>
         <param name="gear_ratio">${hw_config['gear_ratio']}</param>
         <param name="magnets_per_rev">${hw_config['magnets_per_rev']}</param>
+        <param name="front_magnets_per_rev">${hw_config['front_magnets_per_rev']}</param>
       </xacro:if>
     </hardware>
-    
+
     <joint name="drive_joint">
       <command_interface name="velocity"/>
       <state_interface name="velocity"/>
@@ -276,6 +355,15 @@
     <joint name="steering_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
+    </joint>
+
+    <joint name="front_left_wheel_joint">
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="front_right_wheel_joint">
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
     </joint>
   </ros2_control>
 

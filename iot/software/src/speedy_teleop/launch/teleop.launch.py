@@ -1,4 +1,5 @@
 import os
+import math
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -7,36 +8,36 @@ from launch.actions import LogInfo
 
 def generate_launch_description():
     """
-    Script de inicialização de teleoperação manual.
+    Script de inicialização de teleoperação manual e ferramentas de calibração.
     """
 
-    # Obtendo o diretorio de instalacao para carregar o YAML de forma segura
+    # Configs
     bringup_dir = get_package_share_directory('speedy_bringup')
     teleop_config_path = os.path.join(bringup_dir, 'config', 'teleop.yaml')
-    config_path = os.path.join(bringup_dir, 'config', 'controllers.yaml')
-    
-    max_steer = 0.785 # default fallback
-    max_linear = 1.0 # default fallback
-    wheel_radius = 0.0325 # default fallback
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-            params = config['bicycle_steering_controller']['ros__parameters']
-            max_steer = float(params.get('angular.z.max_position', 0.785))
-            max_linear = float(params.get('linear.x.max_velocity', 1.0))
-            wheel_radius = float(params.get('traction_wheel_radius', 0.0325))
-    except Exception as e:
-        print(f"[Aviso] Nao foi possivel ler os limites do controllers.yaml. Usando defaults. Erro: {e}")
+    supervisor_config_path = os.path.join(bringup_dir, 'config', 'supervisor.yaml')
+    hardware_config_path = os.path.join(bringup_dir, 'config', 'hardware.yaml')
 
-    # Log informativo
+    # Extração de limites do hardware
+    max_steer = 0.785
+    max_linear = 1.0
+    try:
+        with open(hardware_config_path, 'r') as f:
+            hw = yaml.safe_load(f)['speedy_hardware']['ros__parameters']
+            steer_deg = max(float(hw['max_steering_angle_left_deg']),
+                            float(hw['max_steering_angle_right_deg']))
+            max_steer = math.radians(steer_deg)
+            max_linear = float(hw['max_linear_velocity'])
+            wheelbase = float(hw['wheelbase'])
+    except Exception as e:
+        print(f"[Aviso] Nao foi possivel ler hardware.yaml. Usando defaults. Erro: {e}")
+
     log_msg = LogInfo(
         msg=f"\n{'='*60}\n  [SPEEDY TELEOP] Initializing Manual Control System...\n"
-            f"  - Automatic Steering Limit: {max_steer} rad\n"
+            f"  - Steering Limit: {max_steer:.4f} rad\n"
             f"  - Velocity Limit: {max_linear} m/s\n"
-            f"  - Wheel Radius: {wheel_radius} m\n"
     )
 
-    # Nó do Joystick
+    # Joystick
     joy_node = Node(
         package='joy',
         executable='joy_node',
@@ -45,38 +46,31 @@ def generate_launch_description():
             'device_id': 0,
             'deadzone': 0.05,
             'autorepeat_rate': 20.0,
-            'coalesce_interval_ms': 1,
-            'autoreconnect_period': 1.0,
         }],
-        respawn=True,
-        respawn_delay=1.0,
         output='screen'
     )
 
-    # Teleop: Piloto Humano (Gera comandos para ambos os modos)
+    # Teleop
     teleop_node = Node(
         package='speedy_teleop',
         executable='racing_teleop',
         name='racing_teleop_node',
         parameters=[
-            teleop_config_path, 
+            teleop_config_path,
             {
                 'max_steer_angle': max_steer,
                 'max_velocity': max_linear,
-                'wheel_radius': wheel_radius
             }
         ],
         output='screen'
     )
 
-    # Supervisor: Máquina de Estados (Muda o hardware)
+    # Supervisor
     supervisor_node = Node(
         package='speedy_supervisor',
         executable='speedy_supervisor',
         name='speedy_supervisor',
-        parameters=[
-            teleop_config_path
-        ],
+        parameters=[supervisor_config_path],
         output='screen'
     )
 

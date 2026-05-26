@@ -3,5 +3,8 @@ racing_teleop_node:
     axis_steering: 0
     axis_throttle: 4
     axis_brake: 5
+    axis_dpad_h: 6
+    axis_dpad_v: 7
+    cruise_step: 0.1        # m/s por pressão do d-pad (cima/baixo)
     deadzone: 0.05
-    # Os limites de velocidade e escala são injetados via launch do controllers.yaml
+    # max_steer_angle, max_velocity e wheel_radius são injetados pelo launch a partir do hardware.yaml.

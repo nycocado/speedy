@@ -19,11 +19,10 @@ setup(
     zip_safe=True,
     maintainer='nycocado',
     maintainer_email='nycolascanutto@gmail.com',
-    description='Scripts globais de inicialização do sistema (Micro-ROS, Foxglove, Sensores Base).',
+    description='Scripts globais de inicialização do sistema (ros2_control RPi PWM, Foxglove, Sensores Base).',
     license='Proprietary',
     entry_points={
         'console_scripts': [
-            'calibration_node = speedy_bringup.scripts.calibration_node:main',
         ],
     },
 )

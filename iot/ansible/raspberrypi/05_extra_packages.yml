@@ -1,7 +1,42 @@
 ---
 - name: 05 - Ferramentas Adicionais (Host)
   block:
-    - name: Instalar ferramentas de monitoramento e sistema
+    - name: Instalar ferramentas de monitoramento e dependências
       ansible.builtin.apt:
-        name: [build-essential, cmake, pkg-config, htop, nvtop, tmux, nano, v4l-utils, python3-pip, libcamera-dev, libcamera-ipa, libcamera-v4l2, libcamera-tools, libfmt-dev, meson, ninja-build, python3-jinja2, python3-ply, python3-yaml, libyaml-dev, libevent-dev, libgnutls28-dev, libudev-dev, pybind11-dev, libgpiod-dev, rapidjson-dev]
+        name: [build-essential, cmake, pkg-config, htop, nvtop, tmux, nano, v4l-utils, python3-pip, libcamera-dev, libcamera-ipa, libcamera-v4l2, libcamera-tools, libfmt-dev, meson, ninja-build, python3-jinja2, python3-ply, python3-yaml, libyaml-dev, libevent-dev, libgnutls28-dev, libudev-dev, pybind11-dev, libgpiod-dev, rapidjson-dev, libi2c-dev, libeigen3-dev, libgraphicsmagick++-dev]
         state: present
+
+    - name: Instalar ncnn (inferência YOLO) via pip
+      ansible.builtin.pip:
+        name: ncnn
+        extra_args: --break-system-packages
+        state: present
+
+    - name: Clonar pigpio
+      ansible.builtin.git:
+        repo: https://github.com/joan2937/pigpio.git
+        dest: /opt/pigpio
+        depth: 1
+        version: master
+
+    - name: Compilar e instalar pigpio
+      ansible.builtin.shell: |
+        make -j$(nproc) && make install
+      args:
+        chdir: /opt/pigpio
+        creates: /usr/local/lib/libpigpiod_if2.so
+
+    - name: Instalar serviço pigpiod
+      ansible.builtin.copy:
+        src: ../files/pigpiod.service
+        dest: /etc/systemd/system/pigpiod.service
+        mode: '0644'
+      register: pigpiod_service
+
+    - name: Recarregar systemd e activar pigpiod
+      ansible.builtin.systemd:
+        daemon_reload: yes
+        name: pigpiod
+        enabled: yes
+        state: started
+      when: pigpiod_service.changed

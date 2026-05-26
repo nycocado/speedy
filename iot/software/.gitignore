@@ -18,3 +18,7 @@ log/
 # OS specific files
 .DS_Store
 thumbs.db
+
+# Cross-Compilation
+build_aarch64/
+install_aarch64/

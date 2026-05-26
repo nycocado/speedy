@@ -1,0 +1,35 @@
+line_detector:
+  ros__parameters:
+    enabled: true
+    band_bottom_frac: 0.16     # ignora estes % de baixo (nariz do carro), 0 = usa tudo
+    band_top_frac: 0.47       # banda de análise sobe até 50% da altura (chão à frente)
+    n_rows: 12                # linhas de varredura na banda
+    blur_kernel: 5            # blur pré-threshold (ímpar)
+    min_edge_w_frac: 0.008    # trecho escuro mais fino que isto = ruído
+    max_edge_w_frac: 0.06     # mais largo que isto = painel/sombra -> rejeitado (fita é "meio grossa")
+    min_valid_rows: 4         # mínimo de pontos p/ ajustar uma fita (por fita)
+    lane_half_init_frac: 0.22 # meia-largura inicial da lane (offset com 1 fita; auto-refina por EMA)
+    lane_width_min_frac: 0.12 # sanidade: separação das fitas mais estreita que isto = não atualiza meia-largura
+    lane_width_max_frac: 0.95
+    lane_ema_alpha: 0.1       # suavização da meia-largura estimada da lane
+    max_rate_hz: 15.0         # processa no máx 15 frames/s (câmera segue a 30; 0 = sem teto)
+    outlier_reject: true      # descarta pontos fora da reta de cada fita (marcas/obstáculos colineares)
+    outlier_max_frac: 0.06    # ponto a > 6% da largura, da reta da fita = outlier (descartado)
+    assoc_gate_frac: 0.12     # candidato a > esta fração da fita prevista não associa (rejeita obstáculo no meio)
+    track_max_miss: 5         # frames sem ver uma fita até largar o track (re-bootstrap)
+
+obstacle_detector:
+  ros__parameters:
+    enabled: true
+    model_dir: ''             # vazio = share/speedy_vision/models/obstacle_detector
+    param_file: model.ncnn.param
+    bin_file: model.ncnn.bin
+    input_size: 0             # 0 = usa imgsz do metadata.yaml
+    num_threads: 2            # deixa núcleos p/ line_detector/controlo no Pi4
+    conf_threshold: 0.35
+    nms_threshold: 0.45
+    class_names: ['']         # vazio = usa names do metadata.yaml
+    max_rate_hz: 5.0          # teto de inferências/s (poupa CPU; 0 = sem teto)
+    publish_overlay: true
+    undistort: true           # corrige distorção "olho de peixe" antes da inferência
+    grayscale: true           # converte para tons de cinza antes da inferência

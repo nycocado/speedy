@@ -1,0 +1,52 @@
+reactive_controller:
+  ros__parameters:
+    navigation_enabled: true     # False = publica zero (trava movimento) sem matar o nó
+
+    # wheelbase e steer_max NÃO entram aqui: são fonte única do hardware.yaml,
+    # injetados pelo launch (core.launch.py). Não duplicar.
+
+    # --- VISÃO: PID de guiamento (erro lateral -> ângulo de esterço) ---
+    # Malha externa de trajetória (a malha de velocidade do motor é outra, no speedy_control).
+    # Inverter o sinal de kp/ki/kd se o carro esterçar para o lado errado.
+    # TUNING: começar com ki_lat=0, kd_lat=0, k_heading=0. Afinar kp_lat primeiro
+    # (aumentar até oscilar, recuar para ~60%). Depois k_heading (curvas). Por último kd.
+    kp_lat: -1.0           # proporcional
+    ki_lat: 0.0           # integral: manter em 0 durante tuning inicial; só ativar no fim
+    kd_lat: -0.3           # derivativo: manter em 0 durante tuning inicial
+    i_max: 0.0            # anti-windup do integral
+    k_heading: -0.3        # feedforward da curvatura; manter 0 até kp estar afinado
+    # Re-aquisição (modo 1-fita, curva apertada de 90°): viés de esterço p/ o lado da
+    # fita EM FALTA, p/ a trazer de volta ao FOV. steer = k_reacquire * visible_side
+    # (visible_side: +1 = só fita direita visível -> curva à esq.; -1 = só esquerda).
+    # SINAL: oposto ao kp_lat (~ -kp_lat). VERIFICAR EM BANCADA: tapa uma fita e confirma
+    # que esterça PARA o lado da fita tapada. Se for ao contrário, troca o sinal.
+    # Magnitude: subir até a curva de 90° fechar (pode chegar perto do steer_max ~0.44).
+    k_reacquire: 0.3
+
+    # --- AVOID: desvio limitado do LiDAR (só contorna painel; não navega) ---
+    # A visão segura a pista; isto só soma um empurrão lateral p/ desviar do painel.
+    wall_detect_range: 0.80   # painel mais perto que isto (setor frontal) -> ativa o desvio
+    avoid_fov_deg: 100.0      # setor frontal considerado p/ o desvio
+    k_avoid: 0.8              # ganho do desvio (rad de esterço no máx. de proximidade)
+    dodge_max_frac: 0.6       # teto do desvio como fração do steer_max
+    vision_suppress: 0.7      # quanto a proximidade reduz a autoridade da visão [0..1]
+    center_threat_deg: 10.0   # painel ~à frente: decide o lado pela metade mais aberta
+
+    # --- Heading-hold (rampa/cego): referência = yaw do EKF (sem drift) ---
+    kp_yaw: 1.0
+
+    # --- RAMPA: detetada pelo pitch do IMU ---
+    ramp_pitch_deg: 8.0   # pitch acima disto -> modo RAMP
+    ramp_speed: 0.8       # m/s p/ subir com momento (calibrável; não é "máximo cego")
+    ramp_steer_scale: 0.4 # reduz a autoridade do esterço na rampa
+
+    # --- Velocidade ---
+    v_base: 0.6           # m/s em pista livre (TUNING: começar aqui; subir para 0.6 só após PID estável)
+    v_min: 0.15           # m/s perto de parede / cego
+
+    # --- Segurança e suavização ---
+    hard_stop_range: 0.15 # m: para o motor (rede de segurança do FTG)
+    safety_fov_deg: 60.0  # setor frontal p/ deteção de parede e parada
+    steer_rate_max: 3.0   # rad/s: limita a taxa de variação do esterço (suaviza)
+
+    control_hz: 20.0      # frequência do laço (lido no arranque; não dinâmico)

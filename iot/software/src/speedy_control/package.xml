@@ -3,18 +3,19 @@
 <package format="3">
   <name>speedy_control</name>
   <version>1.0.0</version>
-  <description>Controle de movimento com hardware interface ros2_control nativo para Raspberry Pi 5 via sysfs.</description>
+  <description>Hardware interface ros2_control para Raspberry Pi 5: PWM do motor via sysfs, servo via pigpio, Hall/enable via libgpiod.</description>
   <maintainer email="nycolascanutto@gmail.com">nycocado</maintainer>
   <license>Proprietary</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>std_msgs</depend>
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
   <depend>libgpiod-dev</depend>
+  <depend>pigpio</depend>
   <depend>control_toolbox</depend>
+  <depend>nav_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

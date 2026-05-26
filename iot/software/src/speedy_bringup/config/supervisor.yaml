@@ -1,0 +1,11 @@
+speedy_supervisor:
+  ros__parameters:
+    btn_select: 10        # índice do botão SELECT no /joy
+    btn_start: 11         # índice do botão START no /joy
+    btn_estop: 1          # índice do botão de parada de emergência
+    hold_duration: 1.0    # s segurando SELECT+START para alternar MANUAL/AUTO
+
+servo_calibrator:
+  ros__parameters:
+    select_button: 10     # mesmo botão do supervisor para iniciar/parar gravação
+

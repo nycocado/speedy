@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
 import time
+import queue
+import threading
 import cv2
 import json
 import numpy as np
@@ -44,11 +46,20 @@ class DatasetCollector(Node):
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
+        # Contagem inicial de fotos já existentes; depois mantida em memória (evita listdir por foto).
+        self.photo_count = len([f for f in os.listdir(self.save_path) if f.endswith('.jpg')])
+
+        # Escrita de imagem numa thread dedicada para não bloquear o executor (burst).
+        self.save_queue = queue.Queue(maxsize=100)
+        self.stop_worker = False
+        self.worker = threading.Thread(target=self._writer_loop, daemon=True)
+        self.worker.start()
+
         # Publishers
         self.info_pub = self.create_publisher(String, '/speedy_dataset/info', 10)
 
         # Subscriptions
-        self.create_subscription(Image, '/speedy_camera/image_raw', self.image_callback, 10)
+        self._image_sub = None
         self.create_subscription(CameraInfo, '/speedy_camera/camera_info', self.info_callback, 10)
         self.create_subscription(Joy, '/joy', self.joy_callback, 10)
         
@@ -58,7 +69,17 @@ class DatasetCollector(Node):
         self.get_logger().info("[DATASET] Node initialized. Mode: Manual Only.")
 
     def state_callback(self, msg):
+        was_manual = self.is_manual_mode
         self.is_manual_mode = (msg.data.upper() == "MANUAL")
+        
+        if self.is_manual_mode and not was_manual:
+            self._image_sub = self.create_subscription(Image, '/speedy_camera/image_raw', self.image_callback, 10)
+            self.get_logger().info('[DATASET] Modo MANUAL: subscrito no /image_raw.')
+        elif not self.is_manual_mode and was_manual:
+            if self._image_sub is not None:
+                self.destroy_subscription(self._image_sub)
+                self._image_sub = None
+                self.get_logger().info('[DATASET] Modo AUTO: cancelando subscrição do /image_raw para poupar CPU.')
 
     def info_callback(self, msg):
         if self.camera_info is None and self.should_undistort:
@@ -96,42 +117,43 @@ class DatasetCollector(Node):
         self.button_pressed = is_now_pressed
 
     def save_photo(self, mode):
+        # Apenas enfileira; a escrita (lenta) acontece na thread worker.
         if self.latest_image is None:
             return
-
         try:
-            cv_img = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgr8')
-            
-            # Aplica retificação se os mapas estiverem prontos
-            if self.should_undistort and self.map1 is not None:
-                cv_img = cv2.remap(cv_img, self.map1, self.map2, cv2.INTER_LINEAR)
+            self.save_queue.put_nowait((mode, self.latest_image))
+        except queue.Full:
+            self.get_logger().warn("[DATASET] Fila de escrita cheia — frame descartado.")
 
-            # Tons de Cinza (BW)
-            if self.should_grayscale:
-                cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+    def _writer_loop(self):
+        while not self.stop_worker:
+            try:
+                mode, img_msg = self.save_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            try:
+                cv_img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-            filename = f"speedy_{mode}_{timestamp}.jpg"
-            full_path = os.path.join(self.save_path, filename)
+                if self.should_undistort and self.map1 is not None:
+                    cv_img = cv2.remap(cv_img, self.map1, self.map2, cv2.INTER_LINEAR)
+                if self.should_grayscale:
+                    cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
 
-            cv2.imwrite(full_path, cv_img)
-            self.get_logger().info(f"[DATASET] Photo saved (Rectified): {filename}")
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+                filename = f"speedy_{mode}_{timestamp}.jpg"
+                cv2.imwrite(os.path.join(self.save_path, filename), cv_img)
+                self.photo_count += 1
+                self.get_logger().info(f"[DATASET] Photo saved: {filename}")
 
-            # Contar fotos atuais na pasta (apenas .jpg)
-            num_photos = len([f for f in os.listdir(self.save_path) if f.endswith('.jpg')])
-            
-            # Publicar info
-            info_msg = String()
-            info_dict = {
-                "latest_photo": filename,
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                "total_photos": num_photos
-            }
-            info_msg.data = json.dumps(info_dict)
-            self.info_pub.publish(info_msg)
-
-        except Exception as e:
-            self.get_logger().error(f"[DATASET] Error saving image: {e}")
+                info_msg = String()
+                info_msg.data = json.dumps({
+                    "latest_photo": filename,
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    "total_photos": self.photo_count
+                })
+                self.info_pub.publish(info_msg)
+            except Exception as e:
+                self.get_logger().error(f"[DATASET] Error saving image: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
@@ -141,6 +163,7 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
+        node.stop_worker = True
         node.destroy_node()
         rclpy.shutdown()
 

@@ -15,13 +15,22 @@ class SpeedySupervisorNode(Node):
 
         self.declare_parameter('btn_select', 10)
         self.declare_parameter('btn_start', 11)
+        self.declare_parameter('btn_estop', 1)
+        self.declare_parameter('hold_duration', 2.0)  # s segurando SELECT+START p/ trocar modo
 
         self.btn_select = self.get_parameter('btn_select').value
         self.btn_start = self.get_parameter('btn_start').value
+        self.btn_estop = self.get_parameter('btn_estop').value
+        self.hold_duration = self.get_parameter('hold_duration').value
 
         self.state = 'MANUAL'
         self.hold_start_time = None
         self.toggling = False
+
+        # E-stop: estado latch. Quando ativo, publica 'ESTOP' e a fonte de comando
+        # (teleop) zera a saída. Solto/reativado pelo botão btn_estop (borda de subida).
+        self.estopped = False
+        self.estop_prev_pressed = False
 
         # Publishers / Subscriptions
         self.pub_state = self.create_publisher(String, '/speedy_supervisor/state', 10)
@@ -32,59 +41,86 @@ class SpeedySupervisorNode(Node):
         self.create_timer(1.0, self.publish_state)
 
         self.get_logger().info('[SUPERVISOR] Node initialized.')
-        self.get_logger().info('[SUPERVISOR] Initial State: MANUAL (Direct Control)')
-        
-        # Garante que inicie no estado correto
-        self.switch_to_mode('MANUAL')
+        # Não força um switch inicial: os spawners já sobem os controladores manuais
+        # ATIVOS e o bicycle --inactive, então o hardware nasce em MANUAL. Forçar uma
+        # troca p/ MANUAL aqui (sob STRICT) dispararia "controller already active".
+        self.get_logger().info('[SUPERVISOR] Estado inicial: MANUAL (controladores manuais já ativos).')
 
     def publish_state(self):
         msg = String()
-        msg.data = self.state
+        msg.data = 'ESTOP' if self.estopped else self.state
         self.pub_state.publish(msg)
 
-    def switch_to_mode(self, mode):
+    def switch_to_mode(self, target):
+        """Pede a troca de controladores. self.state só muda quando o switch CONFIRMA."""
         if not self.switch_client.wait_for_service(timeout_sec=2.0):
-            self.get_logger().warn('[SUPERVISOR] SwitchController service unavailable. Is Controller Manager running?')
+            self.get_logger().warn(f'[SUPERVISOR] SwitchController indisponível — modo mantido em {self.state}.')
             return
-        
+
         req = SwitchController.Request()
-        req.strictness = SwitchController.Request.BEST_EFFORT
-        
-        if mode == 'AUTO':
+        # STRICT: atomic transition, no partial failures.
+        req.strictness = SwitchController.Request.STRICT
+        if target == 'AUTO':
             req.activate_controllers = ['bicycle_steering_controller']
             req.deactivate_controllers = ['manual_steering_controller', 'manual_drive_controller']
         else:
             req.activate_controllers = ['manual_steering_controller', 'manual_drive_controller']
             req.deactivate_controllers = ['bicycle_steering_controller']
-            
-        future = self.switch_client.call_async(req)
-        future.add_done_callback(self.switch_callback)
 
-    def switch_callback(self, future):
+        future = self.switch_client.call_async(req)
+        future.add_done_callback(lambda f: self._switch_done(f, target))
+
+    def _switch_done(self, future, target):
         try:
-            response = future.result()
-            if response.ok:
-                self.get_logger().info(f'[SUPERVISOR] Hardware transition to {self.state} completed successfully.')
-            else:
-                self.get_logger().error('[SUPERVISOR] Failed to transition hardware in Controller Manager.')
+            ok = future.result().ok
         except Exception as e:
-            self.get_logger().error(f'[SUPERVISOR] Error calling SwitchController: {e}')
+            self.get_logger().error(f'[SUPERVISOR] Erro no SwitchController: {e} — modo mantido em {self.state}.')
+            return
+        if ok:
+            self.state = target
+            self.get_logger().warn(f'[SUPERVISOR] Hardware em {self.state}.')
+        else:
+            # Estado NÃO muda: o hardware ficou onde estava. Não anuncia AUTO sem o
+            # bicycle ativo (senão o reactive comanda no vazio e o manual segue vivo).
+            self.get_logger().error(
+                f'[SUPERVISOR] Falha ao trocar p/ {target} — modo mantido em {self.state}. '
+                f'Cheque "ros2 control list_controllers".')
 
     def joy_callback(self, msg: Joy):
         now = self.get_clock().now()
-        
-        select_pressed = msg.buttons[self.btn_select] == 1
-        start_pressed = msg.buttons[self.btn_start] == 1
+
+        def pressed(idx):
+            return len(msg.buttons) > idx and msg.buttons[idx] == 1
+
+        # E-stop: borda de subida do botão alterna o estado de emergência (latch).
+        estop_pressed = pressed(self.btn_estop)
+        if estop_pressed and not self.estop_prev_pressed:
+            self.estopped = not self.estopped
+            if self.estopped:
+                self.get_logger().error('[SUPERVISOR] E-STOP ATIVADO — comandos zerados.')
+            else:
+                self.get_logger().warn('[SUPERVISOR] E-stop liberado.')
+            self.publish_state()
+        self.estop_prev_pressed = estop_pressed
+
+        # Em e-stop não há troca de modo; o teleop zera a saída ao ver o estado ESTOP.
+        if self.estopped:
+            self.hold_start_time = None
+            self.toggling = False
+            return
+
+        select_pressed = pressed(self.btn_select)
+        start_pressed = pressed(self.btn_start)
 
         if select_pressed and start_pressed:
             if self.hold_start_time is None:
                 self.hold_start_time = now
             else:
                 duration = (now - self.hold_start_time).nanoseconds / 1e9
-                if duration >= 2.0 and not self.toggling:
-                    self.state = 'AUTO' if self.state == 'MANUAL' else 'MANUAL'
-                    self.get_logger().warn(f'[SUPERVISOR] Switching to MODE {self.state}')
-                    self.switch_to_mode(self.state)
+                if duration >= self.hold_duration and not self.toggling:
+                    target = 'AUTO' if self.state == 'MANUAL' else 'MANUAL'
+                    self.get_logger().warn(f'[SUPERVISOR] Solicitando troca p/ {target}...')
+                    self.switch_to_mode(target)
                     self.toggling = True
         else:
             self.hold_start_time = None

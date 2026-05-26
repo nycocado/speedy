@@ -35,8 +35,6 @@
         shell: /usr/bin/zsh
       become: yes
 
-    # Os dotfiles já são copiados pelo script host/main.yml para a pasta speedy-home no host.
-    # Mas se quisermos sincronizar de dentro do container:
     - name: Sincronizar dotfiles
       ansible.builtin.copy:
         src: "../files/{{ item }}"

@@ -3,7 +3,7 @@
 <package format="3">
   <name>speedy_bringup</name>
   <version>1.0.0</version>
-  <description>Scripts globais de inicialização do sistema (Micro-ROS, Foxglove, Sensores Base).</description>
+  <description>Scripts globais de inicialização do sistema (ros2_control RPi PWM, Foxglove, Sensores Base).</description>
   <maintainer email="nycolascanutto@gmail.com">nycocado</maintainer>
   <license>Proprietary</license>
 
@@ -18,7 +18,9 @@
   <exec_depend>foxglove_bridge</exec_depend>
   <exec_depend>speedy_teleop</exec_depend>
   <exec_depend>speedy_control</exec_depend>
-  <exec_depend>mpu9250driver</exec_depend>
+  <exec_depend>robot_localization</exec_depend>
+  <exec_depend>rf2o_laser_odometry</exec_depend>
+  <exec_depend>speedy_vision</exec_depend>
 
   <!-- Dependências apenas para execução de testes unitários -->
   <test_depend>ament_lint_auto</test_depend>

@@ -1,0 +1,7 @@
+path: /home/nycocado/dev/projects/speedy/yolo  # caminho raiz do dataset
+train: train/images
+val: train/images
+test: train/images
+
+nc: 5
+names: ['Caixa', 'Chao', 'Parede', 'Rampa', 'topo']

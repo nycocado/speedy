@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(speedy_control)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -7,13 +7,13 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(control_toolbox REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(gpiodcxx REQUIRED libgpiodcxx)
-
+find_library(PIGPIO_LIBRARY pigpiod_if2 REQUIRED)
 include_directories(include)
 
 add_library(speedy_hardware_interface SHARED
@@ -26,13 +26,15 @@ target_include_directories(speedy_hardware_interface PUBLIC
 )
 target_link_libraries(speedy_hardware_interface
   ${gpiodcxx_LIBRARIES}
+  ${PIGPIO_LIBRARY}
+  pthread
 )
 ament_target_dependencies(speedy_hardware_interface
   rclcpp
-  std_msgs
   hardware_interface
   pluginlib
   control_toolbox
+  nav_msgs
 )
 
 pluginlib_export_plugin_description_file(hardware_interface speedy_hardware.xml)

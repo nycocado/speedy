@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CycloneDDS xmlns="https://cdds.io/config">
+    <Domain id="any">
+        <General>
+            <Interfaces>
+                <NetworkInterface name="wlan0" priority="default" multicast="true" />
+            </Interfaces>
+            <AllowMulticast>true</AllowMulticast>
+            <MaxMessageSize>65500B</MaxMessageSize>
+            <DontRoute>true</DontRoute>
+        </General>
+
+        <Discovery>
+            <!-- O nome correto no schema para Jazzy/0.10+ é LeaseDuration -->
+            <LeaseDuration>5s</LeaseDuration>
+        </Discovery>
+
+        <Internal>
+            <Watermarks>
+                <WhcHigh>1MB</WhcHigh>
+            </Watermarks>
+        </Internal>
+    </Domain>
+</CycloneDDS>

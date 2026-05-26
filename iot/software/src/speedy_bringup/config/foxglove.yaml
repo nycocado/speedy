@@ -1,0 +1,11 @@
+foxglove_bridge:
+  ros__parameters:
+    port: 443
+    address: 0.0.0.0
+    tls: false
+    # Anti-bufferbloat sobre o hotspot: descarta frame velho e manda só o mais novo,
+    # em vez de enfileirar (defaults 10MB / depth 10 faziam o atraso crescer).
+    # Visualizar SEMPRE /speedy_camera/image_raw/compressed (JPEG), nunca o /image_raw cru.
+    use_compression: false      # o stream de imagem já é JPEG; deflate do websocket só queima CPU do Pi4
+    send_buffer_limit: 2000000  # ~2MB: corta backlog antigo -> latência limitada
+    max_qos_depth: 1            # bridge guarda só o frame mais recente (freshness > completude)

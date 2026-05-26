@@ -1,46 +1,57 @@
-# Configurações de Hardware do Speedy
 speedy_hardware:
   ros__parameters:
-    # --- Limites Mecânicos ---
-    max_steering_angle_left_deg: 25.0
-    max_steering_angle_right_deg: 25.0
-    steering_trim_deg: 0.0
+    # --- Limites Mecânicos (graus) ---
+    max_steering_angle_left_deg: 25.0  # Máximo para a esquerda
+    max_steering_angle_right_deg: 25.0 # Máximo para a direita
+    steering_trim_deg: 0.0             # Ajuste fino do centro físico em graus
 
-    # --- Mapeamento de Pinos (RPi 5) ---
+    # --- Geometria (cinemática bicycle) ---
+    wheelbase: 0.251                   # m — distância entre eixos
+
+    # --- Mapeamento de Pinos
     pin_motor_en_1: 17
     pin_motor_en_2: 27
     pin_motor_fwd_ch: 0
-    pin_motor_fwd: 12
     pin_motor_rev_ch: 1
-    pin_motor_rev: 13
-    pin_servo_ch: 3
     pin_servo: 15
     pin_hall: 24
+    pin_hall_en: 23
+    pin_hall_fl: 25
+    pin_hall_fr: 22
 
     # --- Configurações de Tração ---
     motor_period_ns: 50000
     motor_min_effort: 0.05
     motor_deadband_ms: 10
-    motor_invert_direction: false
+    motor_invert_direction: True
 
-    # --- Configurações de Direção ---
-    steering_pwm_freq_hz: 50.0
-    steering_center_pulse_ms: 1.5
-    steering_max_deflection_ms: 1.0
-    steering_nominal_range_deg: 45.0
-    steering_use_polynomial: true
-    steering_poly_a2: 0.000333
-    steering_poly_a1: 0.028469
-    steering_poly_a0: 1.481
-    steering_max_speed_deg_per_sec: 0.0
-    steering_invert_direction: false
-    
+    # --- Configurações de Direção (Servo RC) ---
+    steering_center_pulse_ms: 1.5         # Pulso de centro (ms)
+    steering_max_deflection_ms: 1.0       # Pulso no limite físico do chassi (ms) — calibrar junto com max_steering_angle_*_deg
+    steering_max_speed_deg_per_sec: 0.0   # 0 = Instantâneo. (Ex: 180.0 para simular servo lento)
+    steering_invert_direction: False
+
+    # --- Regressão Polinomial de Direção ---
+    # Ajustada por gyro (média dir/esq p/ neutralizar backlash ~3°): pulse = a0 + a1·deg + a2·deg².
+    # a0=centro real (corrige ~2° de viés); a1 antes era 0.04 (íngreme demais → 10° dava 16.7°).
+    steering_use_polynomial: True
+    steering_poly_a0: 1.45304200
+    steering_poly_a1: 0.02523100
+    steering_poly_a2: 0.00016789
+
     # --- Controle e Cinemática ---
-    wheel_radius: 0.0325
-    gear_ratio: 2.3
-    magnets_per_rev: 4
-    pid_kp: 0.6
+    # Laço de velocidade em rad/s + feedforward. Re-calibrar no hardware:
+    #   1) velocity_feedforward = duty (0..1) que atinge a velocidade máxima
+    #   2) ajuste fino com pid_kp / pid_ki
+    pid_kp: 1.0
     pid_ki: 0.4
     pid_kd: 0.0
-    pid_deadband_m_s: 0.01
-    velocity_filter_alpha: 0.02
+    pid_deadband_m_s: 0.02         # abaixo desta velocidade (m/s) o motor desliga
+    velocity_filter_alpha: 0.04     # filtro exponencial (0..1; maior = menos lag, mais ruído)
+    velocity_zero_timeout_ms: 150  # motor off + sem pulsos por este tempo → velocidade = 0 (parada limpa)
+    max_linear_velocity: 0.84      # m/s — Especulado para peso nominal (1.75kg)
+    velocity_feedforward: 1.34      # 1.0 = utiliza 100% do motor para atingir a máxima real especulada
+    wheel_radius: 0.0325
+    gear_ratio: 2.3
+    magnets_per_rev: 6
+    front_magnets_per_rev: 10

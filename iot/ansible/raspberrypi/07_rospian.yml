@@ -21,7 +21,7 @@
     - name: Atualizar cache e instalar ROS 2 Jazzy Base e Pacotes Autónomos
       ansible.builtin.apt:
         update_cache: yes
-        name: 
+        name:
           - ros-jazzy-ros-base
           - ros-jazzy-rmw-cyclonedds-cpp
           - colcon
@@ -43,7 +43,11 @@
           - ros-jazzy-joy-linux
           - ros-jazzy-image-proc
           - ros-jazzy-camera-calibration
+          - ros-jazzy-test-msgs
+          - ros-jazzy-laser-geometry
+          - ros-jazzy-map-msgs
           - nlohmann-json3-dev
           - libwebsocketpp-dev
           - libasio-dev
+          - libgeographiclib-dev
         state: present

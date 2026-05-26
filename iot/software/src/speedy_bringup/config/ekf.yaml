@@ -1,0 +1,38 @@
+ekf_filter_node:
+  ros__parameters:
+    frequency: 50.0
+    sensor_timeout: 0.1
+    two_d_mode: true
+    publish_tf: true
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    # --- odom0: Hall rodas dianteiras (apenas vx) ---
+    odom0: /front_wheels/odom
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, false,
+                   false, false, false]
+    odom0_differential: false
+    odom0_queue_size: 5
+
+    # --- imu0: MPU6050 (DMP) — yaw ABSOLUTO + yaw rate ---
+    # yaw (orientação do DMP) é âncora de heading: o DMP corrige o bias do gyro
+    # continuamente, então não deriva como a integração da taxa crua. vyaw (taxa)
+    # entra junto para resposta/suavidade. differential=false: yaw é tratado como
+    # medição absoluta (o odom é relativo; o EKF inicializa no 1º yaw recebido).
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    imu0: /imu/mpu6050
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_queue_size: 10
+

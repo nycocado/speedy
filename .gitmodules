@@ -1,31 +1,40 @@
-[submodule "iot/software/src/ldlidar_ros2"]
-	path = iot/software/src/ldlidar_ros2
+[submodule "iot/software/src/deps/ldlidar_ros2"]
+	path = iot/software/src/deps/ldlidar_ros2
 	url = https://github.com/nycocado/ldlidar_ros2.git
-[submodule "iot/software/src/camera_ros"]
-	path = iot/software/src/camera_ros
+	branch = master
+[submodule "iot/software/src/deps/camera_ros"]
+	path = iot/software/src/deps/camera_ros
 	url = https://github.com/christianrauch/camera_ros.git
-[submodule "iot/software/src/foxglove-sdk"]
-	path = iot/software/src/foxglove-sdk
+	branch = main
+[submodule "iot/software/src/deps/foxglove-sdk"]
+	path = iot/software/src/deps/foxglove-sdk
 	url = https://github.com/nycocado/foxglove-sdk.git
-[submodule "iot/software/src/rosx_introspection"]
-	path = iot/software/src/rosx_introspection
+	branch = main
+[submodule "iot/software/src/deps/rosx_introspection"]
+	path = iot/software/src/deps/rosx_introspection
 	url = https://github.com/nycocado/rosx_introspection.git
-[submodule "iot/software/src/joint_state_publisher"]
-	path = iot/software/src/joint_state_publisher
+	branch = master
+[submodule "iot/software/src/deps/joint_state_publisher"]
+	path = iot/software/src/deps/joint_state_publisher
 	url = https://github.com/ros/joint_state_publisher.git
-	branch = jazzy
-[submodule "iot/software/src/geographic_info"]
-	path = iot/software/src/geographic_info
-	url = https://github.com/ros-geographic-info/geographic_info.git
-	branch = jazzy
-[submodule "iot/software/src/robot_localization"]
-	path = iot/software/src/robot_localization
+	branch = ros2
+[submodule "iot/software/src/deps/robot_localization"]
+	path = iot/software/src/deps/robot_localization
 	url = https://github.com/cra-ros-pkg/robot_localization.git
 	branch = jazzy-devel
-[submodule "iot/software/src/imu_tools"]
-	path = iot/software/src/imu_tools
+[submodule "iot/software/src/deps/imu_tools"]
+	path = iot/software/src/deps/imu_tools
 	url = https://github.com/CCNYRoboticsLab/imu_tools.git
 	branch = jazzy
-[submodule "iot/software/src/mpu6050_driver"]
-	path = iot/software/src/mpu6050_driver
+[submodule "iot/software/src/deps/mpu6050_driver"]
+	path = iot/software/src/deps/mpu6050_driver
 	url = https://github.com/nycocado/ros2_mpu6050.git
+	branch = main
+[submodule "iot/software/src/deps/geographic_info"]
+	path = iot/software/src/deps/geographic_info
+	url = https://github.com/ros-geographic-info/geographic_info.git
+	branch = ros2
+[submodule "iot/software/src/deps/vision_msgs"]
+	path = iot/software/src/deps/vision_msgs
+	url = https://github.com/ros-perception/vision_msgs.git
+	branch = ros2

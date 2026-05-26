@@ -6,25 +6,18 @@
         name: [dphys-swapfile, device-tree-compiler, libi2c-dev, i2c-tools]
         state: present
 
-    - name: Preparar Overlay de PWM customizado para Pi 5 (3 canais)
-      block:
-        - name: Copiar fonte do overlay DTS
-          ansible.builtin.copy:
-            src: ../files/pwm-pi5.dts
-            dest: /tmp/pwm-pi5.dts
-          register: dts_source
-
-        - name: Compilar e instalar overlay DTBO
-          ansible.builtin.shell: |
-            dtc -I dts -O dtb -o /boot/firmware/overlays/pwm-pi5.dtbo /tmp/pwm-pi5.dts
-          when: dts_source.changed
-      
     - name: Aumentar o tamanho do SWAP (4GB) para evitar travamentos no colcon build
       ansible.builtin.lineinfile:
         path: /etc/dphys-swapfile
         regexp: '^#?CONF_SWAPSIZE='
         line: 'CONF_SWAPSIZE=4096'
         create: yes
+
+    - name: Remover limite máximo de SWAP (CONF_MAXSWAP)
+      ansible.builtin.lineinfile:
+        path: /etc/dphys-swapfile
+        regexp: '^#?CONF_MAXSWAP='
+        line: 'CONF_MAXSWAP=4096'
       register: swap_config
 
     - name: Garantir parametros de fsck no cmdline.txt
@@ -53,9 +46,9 @@
         - { line: "dtparam=audio=off", regexp: "^dtparam=audio=" }
         - { line: "dtparam=i2c_arm=on", regexp: "^dtparam=i2c_arm=" }
         - { line: "dtparam=spi=off", regexp: "^dtparam=spi=" }
-        - { line: "camera_auto_detect=0", regexp: "^camera_auto_detect=" }
-        - { line: "dtoverlay=ov5647,cam0,link-frequency=220500000", regexp: "^dtoverlay=ov5647" }
-        - { line: "dtoverlay=pwm-pi5", regexp: "^dtoverlay=pwm-pi5" }
+        - { line: "camera_auto_detect=1", regexp: "^camera_auto_detect=" }
+        - { line: "dtoverlay=ov5647,cam0", regexp: "^dtoverlay=ov5647" }
+        - { line: "dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4", regexp: "^dtoverlay=pwm-2chan" }
 
     - name: Garantir que o modulo i2c-dev carrega no boot
       ansible.builtin.lineinfile:
@@ -70,9 +63,9 @@
         mode: '0644'
       loop:
         - { name: '10-ldlidar.rules', content: 'KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0666", GROUP:="dialout", SYMLINK+="ldlidar"' }
-        - { name: '99-esp32.rules', content: 'SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="0666", GROUP="dialout", SYMLINK+="ttyESP32"' }
         - { name: '12-pwm.rules', content: 'SUBSYSTEM=="pwm", KERNEL=="pwmchip*", ACTION=="add", RUN+="/bin/chgrp -R gpio /sys%p", RUN+="/bin/chmod -R g+w /sys%p"' }
         - { name: '99-gpio.rules', content: 'SUBSYSTEM=="gpio", KERNEL=="gpiochip*", ACTION=="add", GROUP="gpio", MODE="0660"' }
+        - { name: '99-gpiomem.rules', content: 'KERNEL=="gpiomem", GROUP="gpio", MODE="0660"' }
         - { name: '99-i2c.rules', content: 'KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"' }
         - { name: '99-joy.rules', content: 'KERNEL=="js*", MODE="0666", GROUP="input"' }
 

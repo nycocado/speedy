@@ -19,7 +19,7 @@ def generate_launch_description():
         msg=f"\n{'*'*60}\n  [SPEEDY MASTER] Iniciando todos os subsistemas...\n{'*'*60}\n"
     )
 
-    # 1. Incluir o Launch do Core (Micro-ROS + Foxglove)
+    # 1. Incluir o Launch do Core (ros2_control RPi PWM + Foxglove + Sensores)
     core_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(bringup_dir, 'launch', 'core.launch.py')

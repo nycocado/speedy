@@ -1,0 +1,15 @@
+# Ignorar tudo na pasta yolo por padrão (pesos, datasets, runs)
+*
+
+# Exceto os arquivos de script e configuração
+!.gitignore
+!*.py
+!*.yaml
+!README*
+
+# Excluir explicitamente os pesos (caso algum acabe vazando com extensão diferente, mas * já cobre)
+*.pt
+*.onnx
+runs/
+datasets/
+train/
