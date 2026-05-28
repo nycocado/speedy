@@ -26,7 +26,19 @@
         update_cache: yes
         name: 
           - ros-jazzy-desktop
+          - ros-jazzy-rmw-cyclonedds-cpp
+          - python3-rosdep
+          - colcon
+          - python3-colcon-ros
+          - python3-colcon-common-extensions
         state: present
+      become: yes
+
+    - name: Inicializar rosdep (sudo)
+      ansible.builtin.command: rosdep init
+      register: rosdep_init
+      failed_when: false
+      changed_when: rosdep_init.rc == 0
       become: yes
 
     - name: Baixar pacote Debian do Foxglove Studio

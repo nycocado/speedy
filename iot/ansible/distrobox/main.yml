@@ -13,3 +13,5 @@
       ansible.builtin.include_tasks: 02_shell.yml
     - name: "Passo 03: ROS 2 Desktop e Foxglove"
       ansible.builtin.include_tasks: 03_ros2_desktop.yml
+    - name: "Passo 04: PC Workspace"
+      ansible.builtin.include_tasks: 04_pc_workspace.yml

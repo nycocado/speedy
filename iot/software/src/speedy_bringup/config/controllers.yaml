@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 50  # Hz
+    update_rate: 20  # Hz
 
     # Controlador de Bicicleta (1 Motor, 1 Servo) - Ideal para Jazzy
     bicycle_steering_controller:

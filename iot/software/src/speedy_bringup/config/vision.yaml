@@ -5,6 +5,9 @@ line_detector:
     band_top_frac: 0.47       # banda de análise sobe até 50% da altura (chão à frente)
     n_rows: 12                # linhas de varredura na banda
     blur_kernel: 5            # blur pré-threshold (ímpar)
+    use_adaptive_thresh: true # usa threshold adaptativo para lidar com variação de luz/sombras
+    adapt_block_size: 31      # tamanho do bloco (ímpar) para cálculo de luz local
+    adapt_c: 15               # contraste local: quanto mais escuro que a média p/ virar fita
     min_edge_w_frac: 0.008    # trecho escuro mais fino que isto = ruído
     max_edge_w_frac: 0.06     # mais largo que isto = painel/sombra -> rejeitado (fita é "meio grossa")
     min_valid_rows: 4         # mínimo de pontos p/ ajustar uma fita (por fita)
@@ -22,14 +25,16 @@ obstacle_detector:
   ros__parameters:
     enabled: true
     model_dir: ''             # vazio = share/speedy_vision/models/obstacle_detector
-    param_file: model.ncnn.param
-    bin_file: model.ncnn.bin
-    input_size: 0             # 0 = usa imgsz do metadata.yaml
-    num_threads: 2            # deixa núcleos p/ line_detector/controlo no Pi4
+    param_file: 'model.ncnn.param'
+    bin_file: 'model.ncnn.bin'
+    input_size: 0             # 0 = usa imgsz do metadata.yaml (320px)
+    num_threads: 1            # CRÍTICO: Limita a 1 core. Impede que a IA congele o RPi
     conf_threshold: 0.35
     nms_threshold: 0.45
-    class_names: ['']         # vazio = usa names do metadata.yaml
-    max_rate_hz: 5.0          # teto de inferências/s (poupa CPU; 0 = sem teto)
+    max_rate_hz: 3.0          # Cap a 3 FPS
     publish_overlay: true
-    undistort: true           # corrige distorção "olho de peixe" antes da inferência
-    grayscale: true           # converte para tons de cinza antes da inferência
+    undistort: false
+    grayscale: true           # poupa processamento no RPi4
+    use_compressed: true      # Mantido true para não colapsar o DDS
+    image_topic: '/speedy_camera/image_raw'
+    state_topic: '/speedy_supervisor/state'

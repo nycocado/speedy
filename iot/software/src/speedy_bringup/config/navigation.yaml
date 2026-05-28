@@ -21,28 +21,37 @@ reactive_controller:
     # SINAL: oposto ao kp_lat (~ -kp_lat). VERIFICAR EM BANCADA: tapa uma fita e confirma
     # que esterça PARA o lado da fita tapada. Se for ao contrário, troca o sinal.
     # Magnitude: subir até a curva de 90° fechar (pode chegar perto do steer_max ~0.44).
-    k_reacquire: 0.3
+    k_reacquire: 0.2
 
-    # --- AVOID: desvio limitado do LiDAR (só contorna painel; não navega) ---
-    # A visão segura a pista; isto só soma um empurrão lateral p/ desviar do painel.
-    wall_detect_range: 0.80   # painel mais perto que isto (setor frontal) -> ativa o desvio
-    avoid_fov_deg: 100.0      # setor frontal considerado p/ o desvio
-    k_avoid: 0.8              # ganho do desvio (rad de esterço no máx. de proximidade)
-    dodge_max_frac: 0.6       # teto do desvio como fração do steer_max
-    vision_suppress: 0.7      # quanto a proximidade reduz a autoridade da visão [0..1]
-    center_threat_deg: 10.0   # painel ~à frente: decide o lado pela metade mais aberta
+    # --- AVOID: desvio por arcos (Mini-DWA) ---
+    wall_detect_range: 0.80   # Lookahead do DWA (raio de simulação de colisão)
+    dwa_half_width: 0.0725    # Metade da largura de proteção do robô (robô tem 14.5cm -> 0.0725)
 
     # --- Heading-hold (rampa/cego): referência = yaw do EKF (sem drift) ---
     kp_yaw: 1.0
+    blind_momentum_timeout: 1.5  # tempo de "fé" na descida da rampa
 
-    # --- RAMPA: detetada pelo pitch do IMU ---
-    ramp_pitch_deg: 8.0   # pitch acima disto -> modo RAMP
-    ramp_speed: 0.8       # m/s p/ subir com momento (calibrável; não é "máximo cego")
-    ramp_steer_scale: 0.4 # reduz a autoridade do esterço na rampa
+    # --- Rampa (Inércia) ---
+    ramp_speed: 0.8       # m/s p/ subir e atravessar a queda com momento
+
+    # --- Tópicos ---
+    detection_topic: '/obstacle_detector/detections'
+    state_topic: '/speedy_supervisor/state'
+    # O padrão do chão confunde o line_detector → suprime a visão e segura o yaw.
+    # Usa _straight_yaw (último yaw em VISION com heading_error < floor_heading_thr_deg)
+    # para não herdar o yaw de uma curva se o Chão for detetado durante uma.
+    # floor_speed > v_min: manter impulso para subir a rampa a seguir.
+    det_hold_min: 1          # frames consecutivos para confirmar deteção (1 = imediato a 3fps)
+    det_clear_min: 5         # frames sem deteção para desativar o modo
+    floor_speed: 0.5         # m/s no modo FLOOR (entre v_min e v_base)
+    floor_heading_thr_deg: 12.0  # heading_error máx. (°) para atualizar straight_yaw
+    # Filtro de proximidade (espaço do modelo 320px): ignora deteções com bbox < este valor.
+    # Ver no Foxglove o tamanho real das bboxes a diferentes distâncias antes de afinar.
+    det_min_bbox_px: 60      # ~18% do modelo (320px); subir se ativar longe demais
 
     # --- Velocidade ---
     v_base: 0.6           # m/s em pista livre (TUNING: começar aqui; subir para 0.6 só após PID estável)
-    v_min: 0.15           # m/s perto de parede / cego
+    v_min: 0.4           # m/s perto de parede / cego
 
     # --- Segurança e suavização ---
     hard_stop_range: 0.15 # m: para o motor (rede de segurança do FTG)

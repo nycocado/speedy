@@ -177,19 +177,13 @@ def generate_launch_description():
         output='screen'
     )
 
-    obstacle_detector_node = Node(
-        package='speedy_vision',
-        executable='obstacle_detector',
-        parameters=[vision_config_path],
-        output='screen'
-    )
-
     reactive_controller_node = Node(
         package='speedy_navigation',
         executable='reactive_controller',
         parameters=[navigation_config_path, reactive_params],
         output='screen'
     )
+
     return LaunchDescription([
         log_msg,
         robot_state_pub_node,
@@ -204,6 +198,5 @@ def generate_launch_description():
         mpu6050_node,
         ekf_node,
         line_detector_node,
-        obstacle_detector_node,
         reactive_controller_node
     ])

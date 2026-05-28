@@ -7,7 +7,8 @@ crescer. Não toca no controlo: por agora só publica Detection2DArray + overlay
 """
 import os
 import time
-import threading
+import multiprocessing as mp
+from queue import Empty, Full
 
 import yaml
 import rclpy
@@ -42,6 +43,34 @@ def _pt(x, y):
     return p
 
 
+# Worker isolado num novo processo do Sistema Operativo
+def _ncnn_worker(param_path, bin_path, input_size, num_threads, conf_thr, nms_thr,
+                 in_queue, out_queue):
+    # Carrega a IA só dentro deste processo
+    model = YoloNcnn(param_path, bin_path, input_size=input_size, num_threads=num_threads)
+    
+    while True:
+        try:
+            # Espera ativamente por imagens
+            job = in_queue.get(timeout=1.0)
+            if job is None:
+                break # Sinal de término
+            
+            bgr, stamp, seq = job
+            dets = model.infer(bgr, conf_thr, nms_thr)
+            
+            # Envia resultados de volta ao ROS
+            try:
+                out_queue.put_nowait((dets, stamp, seq))
+            except Full:
+                pass
+                
+        except Empty:
+            continue
+        except Exception as e:
+            print(f"[Worker NCNN] Erro: {e}")
+
+
 class ObstacleDetectorNode(Node):
     def __init__(self):
         super().__init__('obstacle_detector')
@@ -50,17 +79,18 @@ class ObstacleDetectorNode(Node):
         self.declare_parameter('param_file', 'model.ncnn.param')
         self.declare_parameter('bin_file', 'model.ncnn.bin')
         self.declare_parameter('input_size', 0)        # 0 -> usa imgsz do metadata.yaml
-        self.declare_parameter('num_threads', 2)
+        self.declare_parameter('num_threads', 1)
         self.declare_parameter('conf_threshold', 0.35)
         self.declare_parameter('nms_threshold', 0.45)
         self.declare_parameter('class_names', [''])    # vazio -> usa names do metadata.yaml
-        self.declare_parameter('max_rate_hz', 0.0)     # 0 = sem teto (deixa a inferência ditar)
+        self.declare_parameter('max_rate_hz', 3.0)     # Cap a 3 FPS
         self.declare_parameter('image_topic', '/speedy_camera/image_raw')
         self.declare_parameter('state_topic', '/speedy_supervisor/state')
         self.declare_parameter('publish_overlay', True)
-        self.declare_parameter('undistort', True)
+        self.declare_parameter('undistort', False)
         self.declare_parameter('grayscale', True)
         self.declare_parameter('enabled', True)               # False = congela inferência sem matar o nó
+        self.declare_parameter('use_compressed', False)
 
         model_dir = self.get_parameter('model_dir').value or os.path.join(
             get_package_share_directory('speedy_vision'), 'models', 'obstacle_detector')
@@ -84,21 +114,29 @@ class ObstacleDetectorNode(Node):
         self._overlay = self.get_parameter('publish_overlay').value
         self._undistort = self.get_parameter('undistort').value
         self._grayscale = self.get_parameter('grayscale').value
+        self._use_compressed = self.get_parameter('use_compressed').value
+        self._enabled = self.get_parameter('enabled').value
         self._undist_maps = None
 
-        self._model = YoloNcnn(
-            param_path, bin_path, input_size=input_size,
-            num_threads=self.get_parameter('num_threads').value,
-        )
         self.get_logger().info(
-            f'[obstacle] Modelo carregado ({input_size}px, classes={list(self._names.values())}).')
+            f'[obstacle] Arrancar Worker NCNN ({input_size}px, classes={list(self._names.values())}).')
 
         self._bridge = CvBridge()
         self._auto = False
-        self._enabled = self.get_parameter('enabled').value
-        self._lock = threading.Lock()
-        self._latest = None
         self._seq = 0
+        self._last_proc = 0.0
+
+        # Multiprocessing setup para evitar GIL starvation
+        self._in_q = mp.Queue(maxsize=1)
+        self._out_q = mp.Queue(maxsize=2)
+        self._worker_process = mp.Process(
+            target=_ncnn_worker,
+            args=(param_path, bin_path, input_size, 
+                  self.get_parameter('num_threads').value, 
+                  self._conf, self._nms, self._in_q, self._out_q),
+            daemon=True
+        )
+        self._worker_process.start()
 
         self._sensor_qos = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
@@ -112,13 +150,17 @@ class ObstacleDetectorNode(Node):
         self._det_pub = self.create_publisher(Detection2DArray, '/obstacle_detector/detections', 10)
         self._annot_pub = self.create_publisher(ImageAnnotations, '/obstacle_detector/annotations', 1)
 
-        # Reage a `enabled` em runtime: desligar larga a subscrição da imagem crua
-        # (não basta saltar a inferência — o transporte da imagem é o custo no Pi4).
         self.add_on_set_parameters_callback(self._on_params)
+        
+        # Timer de ROS para verificar os resultados vindos do Worker sem bloquear
+        self._timer = self.create_timer(0.02, self._check_results)
 
-        self._stop = False
-        self._worker = threading.Thread(target=self._infer_loop, daemon=True)
-        self._worker.start()
+    def _on_params(self, params):
+        for p in params:
+            if p.name == 'enabled':
+                self._enabled = bool(p.value)
+        self._update_image_sub()
+        return SetParametersResult(successful=True)
 
     def _load_metadata(self, model_dir):
         path = os.path.join(model_dir, 'metadata.yaml')
@@ -144,94 +186,81 @@ class ObstacleDetectorNode(Node):
         self._auto = (msg.data.upper() == 'AUTO')
         self._update_image_sub()
 
-    def _on_params(self, params):
-        for p in params:
-            if p.name == 'enabled':
-                self._enabled = bool(p.value)
-        self._update_image_sub()
-        return SetParametersResult(successful=True)
-
     def _update_image_sub(self):
         """Subscreve a imagem só quando AUTO e enabled; senão larga-a (poupa CPU/banda)."""
         want = self._auto and self._enabled
         if want and self._image_sub is None:
-            self._image_sub = self.create_subscription(
-                Image, self.get_parameter('image_topic').value,
-                self._image_cb, self._sensor_qos)
-            self.get_logger().info('[obstacle] Subscrito no tópico de imagem.')
+            topic = self.get_parameter('image_topic').value
+            if self._use_compressed:
+                if not topic.endswith('/compressed'):
+                    topic += '/compressed'
+                from sensor_msgs.msg import CompressedImage
+                self._image_sub = self.create_subscription(
+                    CompressedImage, topic, self._compressed_image_cb, self._sensor_qos)
+            else:
+                self._image_sub = self.create_subscription(
+                    Image, topic, self._image_cb, self._sensor_qos)
+            self.get_logger().info(f'[obstacle] Subscrito no tópico de imagem: {topic}')
         elif not want and self._image_sub is not None:
             self.destroy_subscription(self._image_sub)
             self._image_sub = None
-            with self._lock:
-                self._latest = None
-            self.get_logger().info('[obstacle] Subscrição de imagem cancelada (poupar CPU/banda).')
+            self.get_logger().info('[obstacle] Subscrição de imagem cancelada.')
 
     def _image_cb(self, msg: Image):
-        with self._lock:
-            self._latest = msg
-            self._seq += 1
+        self._process_msg(msg)
 
-    def _infer_loop(self):
-        last_seq = -1
-        last_proc = 0.0
-        n_inf = 0
-        t_acc = 0.0
-        t_log = time.time()
-        while not self._stop:
-            if not self._auto or not self._enabled:
-                time.sleep(0.1)
-                continue
-            with self._lock:
-                msg = self._latest
-                seq = self._seq
-            if msg is None or seq == last_seq:
-                time.sleep(0.005)
-                continue
-            now = time.time()
-            if self._max_rate > 0.0 and (now - last_proc) < (1.0 / self._max_rate):
-                time.sleep(0.005)
-                continue
-            last_seq = seq
-            last_proc = now
+    def _compressed_image_cb(self, msg):
+        self._process_msg(msg)
+        
+    def _process_msg(self, msg):
+        now = time.time()
+        if self._max_rate > 0.0 and (now - self._last_proc) < (1.0 / self._max_rate):
+            return
+            
+        if self._in_q.full():
+            return
 
-            try:
+        try:
+            from sensor_msgs.msg import CompressedImage
+            if isinstance(msg, CompressedImage):
+                bgr = self._bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            else:
                 bgr = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            except Exception as e:
-                self.get_logger().error(f'[obstacle] cv_bridge: {e}')
-                continue
+        except Exception as e:
+            self.get_logger().error(f'[obstacle] cv_bridge: {e}')
+            return
 
-            if self._undistort and self._undist_maps is not None:
-                bgr = cv2.remap(bgr, self._undist_maps[0], self._undist_maps[1], cv2.INTER_LINEAR)
+        if self._undistort and self._undist_maps is not None:
+            bgr = cv2.remap(bgr, self._undist_maps[0], self._undist_maps[1], cv2.INTER_LINEAR)
 
-            if self._grayscale:
-                gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-                bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        if self._grayscale:
+            gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+            bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
-            t0 = time.time()
-            dets = self._model.infer(bgr, self._conf, self._nms)
-            dt = time.time() - t0
+        self._seq += 1
+        try:
+            self._in_q.put_nowait((bgr, msg.header.stamp, self._seq))
+            self._last_proc = now
+        except Full:
+            pass
 
-            self._publish(msg.header, dets)
-            if self._overlay and self._annot_pub.get_subscription_count() > 0:
-                self._publish_overlay(msg.header.stamp, dets)
+    def _check_results(self):
+        try:
+            while True:
+                dets, stamp, seq = self._out_q.get_nowait()
+                self._publish(stamp, dets)
+                if self._overlay and self._annot_pub.get_subscription_count() > 0:
+                    self._publish_overlay(stamp, dets)
+        except Empty:
+            pass
 
-            n_inf += 1
-            t_acc += dt
-            if now - t_log >= 2.0:
-                fps = n_inf / (now - t_log)
-                self.get_logger().info(
-                    f'[obstacle] {fps:.1f} FPS, {1000.0 * t_acc / max(1, n_inf):.0f} ms/inf, '
-                    f'{len(dets)} obj')
-                n_inf = 0
-                t_acc = 0.0
-                t_log = now
-
-    def _publish(self, header, dets):
+    def _publish(self, stamp, dets):
         arr = Detection2DArray()
-        arr.header = header
+        arr.header.stamp = stamp
+        arr.header.frame_id = 'camera_link'
         for d in dets:
             det = Detection2D()
-            det.header = header
+            det.header = arr.header
             hyp = ObjectHypothesisWithPose()
             hyp.hypothesis.class_id = self._names.get(d.cls, str(d.cls))
             hyp.hypothesis.score = d.score
@@ -266,9 +295,13 @@ class ObstacleDetectorNode(Node):
         self._annot_pub.publish(ann)
 
     def destroy_node(self):
-        self._stop = True
-        if self._worker.is_alive():
-            self._worker.join(timeout=1.0)
+        try:
+            self._in_q.put_nowait(None)
+        except:
+            pass
+        self._worker_process.join(timeout=2.0)
+        if self._worker_process.is_alive():
+            self._worker_process.terminate()
         super().destroy_node()
 
 

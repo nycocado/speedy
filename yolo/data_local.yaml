@@ -4,4 +4,4 @@ val: train/images
 test: train/images
 
 nc: 5
-names: ['Caixa', 'Chao', 'Parede', 'Rampa', 'topo']
+names: ['BOX', 'FLOOR', 'WALL', 'RAMP', 'TOP']

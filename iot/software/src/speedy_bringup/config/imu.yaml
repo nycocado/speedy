@@ -11,7 +11,7 @@ mpu6050_sensor:
 
     # Taxa de publicação (Hz). 100 era oversampling 3-5x: EKF roda a 30Hz e o reactive
     # amostra a 20Hz. 50Hz corta a desserialização em todos os assinantes (EKF, reactive).
-    publish_rate_hz: 50.0
+    publish_rate_hz: 20.0
 
     # --- I2C / frame ---
     i2c_bus: "/dev/i2c-1"

@@ -1,0 +1,24 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Python cache files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# VS Code and IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+thumbs.db
+
+# Cross-Compilation
+build_aarch64/
+install_aarch64/

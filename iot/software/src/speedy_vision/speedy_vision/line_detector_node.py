@@ -52,6 +52,11 @@ class LineDetectorNode(Node):
         self.declare_parameter('n_rows', 12)               # linhas de varredura na banda
         self.declare_parameter('blur_kernel', 5)           # blur pré-threshold (ímpar)
 
+        # Threshold adaptativo
+        self.declare_parameter('use_adaptive_thresh', True)
+        self.declare_parameter('adapt_block_size', 31)
+        self.declare_parameter('adapt_c', 15)
+
         # Gate de largura do trecho escuro (fração da largura da imagem).
         # Fita "meio grossa" -> max folgado; painel de 60cm fica muito acima disto.
         self.declare_parameter('min_edge_w_frac', 0.008)
@@ -188,7 +193,8 @@ class LineDetectorNode(Node):
             return
         # Câmera publica a 30fps; processar a lane a essa taxa não acrescenta nada e
         # come CPU. (Não evita a desserialização do rclpy, mas corta todo o resto.)
-        max_rate = self.get_parameter('max_rate_hz').value
+        g = self.get_parameter
+        max_rate = g('max_rate_hz').value
         if max_rate > 0.0:
             now = time.monotonic()
             if (now - self._last_proc) < (1.0 / max_rate):
@@ -202,27 +208,37 @@ class LineDetectorNode(Node):
         cx = w * 0.5
 
         if self._lane_half is None:
-            self._lane_half = self.get_parameter('lane_half_init_frac').value * w
+            self._lane_half = g('lane_half_init_frac').value * w
 
-        blur = self.get_parameter('blur_kernel').value
+        blur = g('blur_kernel').value
         if blur % 2 == 0:
             blur += 1
-        n_rows = self.get_parameter('n_rows').value
-        min_w = max(1, int(self.get_parameter('min_edge_w_frac').value * w))
-        max_w = int(self.get_parameter('max_edge_w_frac').value * w)
-        min_valid = self.get_parameter('min_valid_rows').value
-        lane_w_min = self.get_parameter('lane_width_min_frac').value * w
-        lane_w_max = self.get_parameter('lane_width_max_frac').value * w
-        alpha = self.get_parameter('lane_ema_alpha').value
+        n_rows = g('n_rows').value
+        min_w = max(1, int(g('min_edge_w_frac').value * w))
+        max_w = int(g('max_edge_w_frac').value * w)
+        min_valid = g('min_valid_rows').value
+        lane_w_min = g('lane_width_min_frac').value * w
+        lane_w_max = g('lane_width_max_frac').value * w
+        alpha = g('lane_ema_alpha').value
 
-        y0 = int(h * (1.0 - self.get_parameter('band_top_frac').value))
-        y1 = int(h * (1.0 - self.get_parameter('band_bottom_frac').value))
+        y0 = int(h * (1.0 - g('band_top_frac').value))
+        y1 = int(h * (1.0 - g('band_bottom_frac').value))
         band = gray[y0:y1, :]
 
         blurred = cv2.GaussianBlur(band, (blur, blur), 0)
-        # Threshold global (Otsu): o miolo do painel fica escuro -> trecho largo -> rejeitado.
-        # (O adaptativo marcaria só as bordas finas do painel, fingindo serem fitas.)
-        _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+        
+        if g('use_adaptive_thresh').value:
+            block_size = g('adapt_block_size').value
+            if block_size % 2 == 0:
+                block_size += 1
+            # Threshold adaptativo lida melhor com variações de luz e sombras projetadas
+            binary = cv2.adaptiveThreshold(
+                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                cv2.THRESH_BINARY_INV, block_size, g('adapt_c').value
+            )
+        else:
+            # Threshold global (Otsu)
+            _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
 
         rows = np.linspace(0, band.shape[0] - 1, n_rows).astype(int)
         # Candidatos (todos os trechos-fita) por linha de varredura.
@@ -238,7 +254,7 @@ class LineDetectorNode(Node):
         any_track = had_left or had_right
 
         # Associa cada candidato à fita esquerda ou direita.
-        gate = self.get_parameter('assoc_gate_frac').value * w
+        gate = g('assoc_gate_frac').value * w
         left_pts, right_pts = [], []
         for (y, cs) in row_cands:
             if any_track:
@@ -269,10 +285,10 @@ class LineDetectorNode(Node):
                 if right.size:
                     right_pts.append((y, float(right.min())))
 
-        thr_px = self.get_parameter('outlier_max_frac').value * w
-        if not self.get_parameter('outlier_reject').value:
+        thr_px = g('outlier_max_frac').value * w
+        if not g('outlier_reject').value:
             thr_px = 0.0
-        max_miss = self.get_parameter('track_max_miss').value
+        max_miss = g('track_max_miss').value
 
         # Ajusta cada fita (x = m*y + c) e atualiza/expira o track.
         mL = cL = mR = cR = None

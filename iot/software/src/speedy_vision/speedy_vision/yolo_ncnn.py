@@ -31,20 +31,24 @@ class YoloNcnn:
         if self.net.load_model(bin_path) != 0:
             raise RuntimeError(f'Falha ao carregar model: {bin_path}')
 
-    def infer(self, bgr, conf_thr=0.35, nms_thr=0.45):
+    def _letterbox(self, bgr):
         h, w = bgr.shape[:2]
         s = self.input_size
-        
-        # Converte BGR p/ RGB, redimensiona e normaliza (/255.0) direto no NCNN (C++)
-        # Isso elimina o gargalo do Python manipulando arrays Float32.
-        mat_in = ncnn.Mat.from_pixels_resize(
-            bgr, ncnn.Mat.PixelType.PIXEL_BGR2RGB, w, h, s, s
-        )
-        # YOLOv8 espera [0..1], sem subtração de média (mean=[]), apenas escala (1/255)
-        mat_in.substract_mean_normalize([], [1/255.0, 1/255.0, 1/255.0])
+        r = min(s / h, s / w)
+        nh, nw = int(round(h * r)), int(round(w * r))
+        resized = cv2.resize(bgr, (nw, nh), interpolation=cv2.INTER_LINEAR)
+        canvas = np.full((s, s, 3), 114, dtype=np.uint8)
+        dh, dw = (s - nh) // 2, (s - nw) // 2
+        canvas[dh:dh + nh, dw:dw + nw] = resized
+        return canvas, r, dw, dh
+
+    def infer(self, bgr, conf_thr=0.35, nms_thr=0.45):
+        canvas, r, dw, dh = self._letterbox(bgr)
+        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        chw = np.ascontiguousarray(rgb.transpose(2, 0, 1))
 
         ex = self.net.create_extractor()
-        ex.input(self.input_name, mat_in)
+        ex.input(self.input_name, ncnn.Mat(chw).clone())
         ret, out = ex.extract(self.output_name)
         if ret != 0:
             return []
@@ -79,11 +83,10 @@ class YoloNcnn:
         dets = []
         for i in idxs:
             cx, cy, bw, bh = xywh[i]
-            # Mapeia de volta do espaço 320x320 para a imagem original
-            x1 = (cx - bw * 0.5) * (w / s)
-            y1 = (cy - bh * 0.5) * (h / s)
-            x2 = (cx + bw * 0.5) * (w / s)
-            y2 = (cy + bh * 0.5) * (h / s)
+            x1 = (cx - bw * 0.5 - dw) / r
+            y1 = (cy - bh * 0.5 - dh) / r
+            x2 = (cx + bw * 0.5 - dw) / r
+            y2 = (cy + bh * 0.5 - dh) / r
             dets.append(Detection(float(x1), float(y1), float(x2), float(y2),
                                   float(conf[i]), int(cls[i])))
         return dets

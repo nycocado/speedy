@@ -128,8 +128,21 @@ if [ -f ~/speedy_ws/install/setup.zsh ]; then
     source ~/speedy_ws/install/setup.zsh
 fi
 
+if [ -f ~/speedy_pc_ws/install/setup.zsh ]; then
+    source ~/speedy_pc_ws/install/setup.zsh
+fi
+
+alias speedy_yolo="ros2 launch speedy_vision_pc vision_pc.launch.py"
+
 export ROS_DOMAIN_ID=0
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+# NVIDIA CUDA Libraries (Pip-installed on PC/Distrobox)
+if [ -d "$HOME/.local/lib/python3.12/site-packages/nvidia" ]; then
+    for libdir in $HOME/.local/lib/python3.12/site-packages/nvidia/*/lib; do
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$libdir
+    done
+fi
 
 if command -v fastfetch >/dev/null; then
     fastfetch --pipe false -c examples/14 && printf "\n"

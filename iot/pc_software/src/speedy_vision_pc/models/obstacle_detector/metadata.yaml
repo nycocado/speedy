@@ -1,6 +1,6 @@
-description: Ultralytics YOLO11n model trained on data_local.yaml
+description: Ultralytics best model trained on data_local.yaml
 author: Ultralytics
-date: '2026-05-27T10:14:23.218024'
+date: '2026-05-26T20:43:53.272366'
 version: 8.4.53
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
@@ -18,6 +18,6 @@ names:
   4: TOP
 args:
   batch: 1
-  half: false
+  half: true
 channels: 3
 end2end: false

@@ -1,0 +1,59 @@
+---
+- name: 04 - PC Workspace (Inference YOLO)
+  block:
+    - name: Garantir diretório base do workspace PC no distrobox
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/speedy_pc_ws"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        mode: '0755'
+      become: no
+
+    - name: Criar symlink da pasta src para o workspace do distrobox
+      ansible.builtin.file:
+        src: "{{ playbook_dir }}/../../pc_software/src"
+        dest: "{{ ansible_env.HOME }}/speedy_pc_ws/src"
+        state: link
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        force: yes
+      become: no
+
+    - name: Verificar se Ultralytics já está instalado
+      ansible.builtin.command: python3 -c "import ultralytics"
+      register: yolo_check
+      failed_when: false
+      changed_when: false
+      become: no
+
+    - name: Instalar dependências Python para inferência (YOLO/GPU)
+      ansible.builtin.shell: |
+        pip install --break-system-packages --ignore-installed --default-timeout 1000 --retries 10 ultralytics "numpy<2" opencv-python pyyaml onnx onnxruntime-gpu nvidia-cublas-cu12 nvidia-cudnn-cu12 nvidia-cufft-cu12 nvidia-curand-cu12 nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-cuda-runtime-cu12
+      args:
+        executable: /bin/zsh
+      become: yes
+      become_user: "{{ ansible_user_id }}"
+      when: yolo_check.rc != 0
+
+    - name: Rodar rosdep install no PC workspace
+      ansible.builtin.shell: |
+        source /opt/ros/jazzy/setup.zsh
+        rosdep update
+        rosdep install --from-paths src --ignore-src -y
+      args:
+        chdir: "{{ ansible_env.HOME }}/speedy_pc_ws"
+        executable: /bin/zsh
+      become: yes
+      become_user: "{{ ansible_user_id }}"
+
+    - name: Compilar o Workspace do PC
+      ansible.builtin.shell: |
+        source /opt/ros/jazzy/setup.zsh
+        export COLCON_PYTHON_SETUP_PY_METHOD=pip
+        colcon build
+      args:
+        chdir: "{{ ansible_env.HOME }}/speedy_pc_ws"
+        executable: /bin/zsh
+      become: yes
+      become_user: "{{ ansible_user_id }}"

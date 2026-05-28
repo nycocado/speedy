@@ -1,31 +1,30 @@
 from ultralytics import YOLO
 
 def train():
-    # Carrega o modelo Nano
-    model = YOLO('yolov8n.pt')
+    # Carrega o modelo YOLO11 Nano (mais eficiente e recente que o V8 Nano)
+    # Ideal para poupar processamento no Raspberry Pi 4.
+    model = YOLO('yolo11n.pt')
 
     # 1. Treinamento
+    # Baixamos imgsz para 320px: corta o processamento para 1/4 face aos 640px,
+    # mantendo precisão suficiente para objetos grandes como rampa e caixas.
     results = model.train(
         data='data_local.yaml',
         epochs=100,
-        imgsz=320,          # Redução de tamanho = Mais FPS no RPi4
-        device=0,           # Sua RTX 4060
+        imgsz=320,
+        device=0,           # Sua RTX 4060 para treinar rápido
         project='speedy_vision',
-        name='yolov8n_speedy_final'
+        name='yolo11n_speedy_rpi'
     )
 
     print("\n--- Treinamento Concluído ---")
 
-    # 2. Exportação para NCNN (O formato mais rápido para o processador do RPi4)
-    print("Exportando para NCNN (Máxima Performance)...")
+    # 2. Exportação para NCNN (O formato vital para o RPi 4)
+    print("Exportando para NCNN (Alta performance ARM/RPi)...")
     model.export(format='ncnn', imgsz=320)
 
-    # 3. Exportação para TFLite (Onde o int8 é suportado)
-    print("Exportando para TFLite INT8 (8-bits)...")
-    model.export(format='tflite', imgsz=320, int8=True)
-
     print("\n--- Processo Finalizado ---")
-    print("Os modelos otimizados estão na pasta 'yolo/speedy_vision/yolov8n_speedy_final/weights/'")
+    print("Os modelos otimizados estão na pasta 'yolo/speedy_vision/yolo11n_speedy_rpi/weights/'")
 
 if __name__ == '__main__':
     train()

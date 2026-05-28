@@ -392,7 +392,12 @@ SpeedyHardwareInterface::read(const rclcpp::Time& time,
     hw_pos_fl_ += hw_vel_fl_ * dt;
     hw_pos_fr_ += hw_vel_fr_ * dt;
 
-    hw_steering_state_ = hw_steering_cmd_;
+    // Proteção contra NaN/Inf na leitura da direção (evita quebrar o TF tree)
+    if (std::isfinite(hw_steering_cmd_)) {
+        hw_steering_state_ = hw_steering_cmd_;
+    } else {
+        hw_steering_state_ = 0.0;
+    }
 
     // Publica odometria das rodas dianteiras no tópico /front_wheels/odom.
     // linear.x: velocidade linear média das rodas dianteiras (m/s)
