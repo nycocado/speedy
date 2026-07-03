@@ -8,7 +8,7 @@
         </General>
 
         <Discovery>
-            <!-- O nome correto no schema para Jazzy/0.10+ é LeaseDuration -->
+            <!-- Correct schema name for Jazzy/0.10+ is LeaseDuration -->
             <LeaseDuration>5s</LeaseDuration>
         </Discovery>
 

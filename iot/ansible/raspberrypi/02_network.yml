@@ -1,44 +1,44 @@
 ---
-- name: 02 - Rede e Acesso (Host RPi OS Lite)
+- name: Network and access (RPi OS Lite)
   block:
-    - name: Configurar código de país Wi-Fi (Portugal - PT)
+    - name: Set Wi-Fi country code (PT)
       ansible.builtin.shell: |
         iw reg set PT
         sed -i 's/REGDOMAIN=.*/REGDOMAIN=PT/' /etc/default/crda || echo "REGDOMAIN=PT" >> /etc/default/crda
       changed_when: false
 
-    - name: Garantir que o Wi-Fi não está bloqueado pelo rfkill
+    - name: Unblock Wi-Fi via rfkill
       ansible.builtin.shell: rfkill unblock wifi
       changed_when: false
 
-    - name: Ativar o rádio Wi-Fi no NetworkManager
+    - name: Enable Wi-Fi radio in NetworkManager
       ansible.builtin.command: nmcli radio wifi on
       changed_when: false
 
-    - name: Implantar configuração de Hotspot (Com UUID válido)
+    - name: Deploy hotspot connection profile
       ansible.builtin.copy:
         src: ../files/hotspot.nmconnection
         dest: /etc/NetworkManager/system-connections/SpeedyHotspot.nmconnection
-        mode: '0600'
+        mode: "0600"
         owner: root
         group: root
       register: hotspot_config
 
-    - name: Implantar configuração de Ethernet
+    - name: Deploy Ethernet connection profile
       ansible.builtin.copy:
         src: ../files/eth0.nmconnection
         dest: /etc/NetworkManager/system-connections/eth0.nmconnection
-        mode: '0600'
+        mode: "0600"
         owner: root
         group: root
       register: eth0_config
 
-    - name: Recarregar NetworkManager para ler novos ficheiros
+    - name: Reload NetworkManager to pick up new profiles
       ansible.builtin.command: nmcli connection reload
       when: hotspot_config.changed or eth0_config.changed
 
-    - name: Instalar script de utilidade do Hotspot
+    - name: Install hotspot helper script
       ansible.builtin.copy:
         src: ../files/speedy-hotspot.sh
         dest: /usr/local/bin/speedy-hotspot
-        mode: '0755'
+        mode: "0755"

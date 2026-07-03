@@ -1,7 +1,7 @@
 ---
-- name: 09 - Compilar Workspace
+- name: Build workspace
   block:
-    - name: Compilar o Workspace Nativamente
+    - name: Build workspace natively
       ansible.builtin.shell: |
         source /opt/ros/jazzy/setup.bash
         colcon build \

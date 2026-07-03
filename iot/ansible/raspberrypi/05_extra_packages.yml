@@ -1,39 +1,70 @@
 ---
-- name: 05 - Ferramentas Adicionais (Host)
+- name: Extra packages
   block:
-    - name: Instalar ferramentas de monitoramento e dependências
+    - name: Install monitoring tools and dependencies
       ansible.builtin.apt:
-        name: [build-essential, cmake, pkg-config, htop, nvtop, tmux, nano, v4l-utils, python3-pip, libcamera-dev, libcamera-ipa, libcamera-v4l2, libcamera-tools, libfmt-dev, meson, ninja-build, python3-jinja2, python3-ply, python3-yaml, libyaml-dev, libevent-dev, libgnutls28-dev, libudev-dev, pybind11-dev, libgpiod-dev, rapidjson-dev, libi2c-dev, libeigen3-dev, libgraphicsmagick++-dev]
+        name:
+          [
+            build-essential,
+            cmake,
+            pkg-config,
+            htop,
+            nvtop,
+            tmux,
+            nano,
+            v4l-utils,
+            python3-pip,
+            libcamera-dev,
+            libcamera-ipa,
+            libcamera-v4l2,
+            libcamera-tools,
+            libfmt-dev,
+            meson,
+            ninja-build,
+            python3-jinja2,
+            python3-ply,
+            python3-yaml,
+            libyaml-dev,
+            libevent-dev,
+            libgnutls28-dev,
+            libudev-dev,
+            pybind11-dev,
+            libgpiod-dev,
+            rapidjson-dev,
+            libi2c-dev,
+            libeigen3-dev,
+            libgraphicsmagick++-dev,
+          ]
         state: present
 
-    - name: Instalar ncnn (inferência YOLO) via pip
+    - name: Install ncnn (YOLO inference) via pip
       ansible.builtin.pip:
         name: ncnn
         extra_args: --break-system-packages
         state: present
 
-    - name: Clonar pigpio
+    - name: Clone pigpio
       ansible.builtin.git:
         repo: https://github.com/joan2937/pigpio.git
         dest: /opt/pigpio
         depth: 1
         version: master
 
-    - name: Compilar e instalar pigpio
+    - name: Build and install pigpio
       ansible.builtin.shell: |
         make -j$(nproc) && make install
       args:
         chdir: /opt/pigpio
         creates: /usr/local/lib/libpigpiod_if2.so
 
-    - name: Instalar serviço pigpiod
+    - name: Install pigpiod service
       ansible.builtin.copy:
         src: ../files/pigpiod.service
         dest: /etc/systemd/system/pigpiod.service
-        mode: '0644'
+        mode: "0644"
       register: pigpiod_service
 
-    - name: Recarregar systemd e activar pigpiod
+    - name: Reload systemd and enable pigpiod
       ansible.builtin.systemd:
         daemon_reload: yes
         name: pigpiod

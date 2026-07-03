@@ -1,43 +1,55 @@
 ---
-- name: 01 - Shell e Dotfiles
+- name: Shell and dotfiles
   block:
-    - name: Atualizar cache e instalar pacotes base
+    - name: Update cache and install base packages
       ansible.builtin.apt:
         update_cache: yes
         name: [zsh, git, curl, wget]
         state: present
       become: yes
 
-    - name: Verificar se o Oh My Zsh já está instalado
+    - name: Check if Oh My Zsh is installed
       ansible.builtin.stat:
         path: "~/.oh-my-zsh"
       register: omz_dir
 
-    - name: Instalar Oh My Zsh
-      ansible.builtin.shell: 'curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh > /tmp/install_omz.sh && sh /tmp/install_omz.sh --unattended'
+    - name: Install Oh My Zsh
+      ansible.builtin.shell: "curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh > /tmp/install_omz.sh && sh /tmp/install_omz.sh --unattended"
       when: not omz_dir.stat.exists
 
-    - name: Clonar plugins Zsh
+    - name: Clone Zsh plugins
       ansible.builtin.git:
         repo: "{{ item.repo }}"
         dest: "~/.oh-my-zsh/custom/{{ item.path }}"
         depth: 1
         update: no
       loop:
-        - { repo: 'https://github.com/romkatv/powerlevel10k.git', path: 'themes/powerlevel10k' }
-        - { repo: 'https://github.com/zsh-users/zsh-autosuggestions', path: 'plugins/zsh-autosuggestions' }
-        - { repo: 'https://github.com/zsh-users/zsh-syntax-highlighting.git', path: 'plugins/zsh-syntax-highlighting' }
-        - { repo: 'https://github.com/zsh-users/zsh-completions.git', path: 'plugins/zsh-completions' }
+        - {
+            repo: "https://github.com/romkatv/powerlevel10k.git",
+            path: "themes/powerlevel10k",
+          }
+        - {
+            repo: "https://github.com/zsh-users/zsh-autosuggestions",
+            path: "plugins/zsh-autosuggestions",
+          }
+        - {
+            repo: "https://github.com/zsh-users/zsh-syntax-highlighting.git",
+            path: "plugins/zsh-syntax-highlighting",
+          }
+        - {
+            repo: "https://github.com/zsh-users/zsh-completions.git",
+            path: "plugins/zsh-completions",
+          }
 
-    - name: Configurar Zsh como shell padrão
+    - name: Set Zsh as default shell
       ansible.builtin.user:
         name: "{{ ansible_user_id }}"
         shell: /usr/bin/zsh
       become: yes
 
-    - name: Sincronizar dotfiles
+    - name: Sync dotfiles
       ansible.builtin.copy:
         src: "../files/{{ item }}"
         dest: "~/{{ item }}"
-        mode: '0644'
+        mode: "0644"
       loop: [.zshrc, .p10k.zsh]

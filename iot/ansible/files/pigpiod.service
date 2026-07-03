@@ -1,5 +1,5 @@
 [Unit]
-Description=Daemon PIGPIO (GPIO via DMA no Raspberry Pi)
+Description=PIGPIO daemon (GPIO via DMA on Raspberry Pi)
 After=local-fs.target
 
 [Service]

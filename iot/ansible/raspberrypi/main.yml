@@ -1,71 +1,65 @@
 ---
-- name: Setup do Robô Speedy (Raspberry Pi OS Lite + Rospian Nativo)
+- name: Speedy robot setup (Raspberry Pi OS Lite + native Rospian)
   hosts: robots
   become: yes
   tasks:
-    - name: "Passo 01: Sistema Base"
+    - name: "01 - Base system"
       ansible.builtin.include_tasks:
         file: 01_base.yml
         apply:
           tags: [base]
       tags: [base]
-    - name: "Passo 02: Rede e Acesso"
+    - name: "02 - Network and access"
       ansible.builtin.include_tasks:
         file: 02_network.yml
         apply:
           tags: [network]
       tags: [network]
-    - name: "Passo 03: Shell e Dotfiles"
+    - name: "03 - Shell and dotfiles"
       ansible.builtin.include_tasks:
         file: 03_shell.yml
         apply:
           tags: [shell]
       tags: [shell]
-    - name: "Passo 04: Hardware e Overlays"
+    - name: "04 - Hardware and overlays"
       ansible.builtin.include_tasks:
         file: 04_hardware.yml
         apply:
           tags: [hardware]
       tags: [hardware]
-    - name: "Passo 05: Dependências APT (Host)"
+    - name: "05 - Extra APT packages"
       ansible.builtin.include_tasks:
         file: 05_extra_packages.yml
         apply:
           tags: [packages]
       tags: [packages]
-#   - name: "Passo 06: Compilar libcamera (RPI Nativo)"
-#     ansible.builtin.include_tasks:
-#       file: 06_libcamera_source.yml
-#       apply:
-#         tags: [libcamera]
-#     tags: [libcamera]
-    - name: "Passo 07: ROS 2 Nativo (Rospian)"
+    - name: "06 - Install ROS 2 Jazzy (Rospian)"
       ansible.builtin.include_tasks:
-        file: 07_rospian.yml
+        file: 06_rospian.yml
         apply:
           tags: [ros]
       tags: [ros]
-    - name: "Passo 08: Workspace ROS 2 (Sincronização e Patches)"
+    - name: "07 - Sync workspace"
       ansible.builtin.include_tasks:
-        file: 08_workspace.yml
+        file: 07_workspace.yml
         apply:
           tags: [workspace, deploy]
       tags: [workspace, deploy]
-    - name: "Passo 09: Compilação do Workspace"
+    - name: "08 - Build workspace"
       ansible.builtin.include_tasks:
-        file: 09_workspace_build.yml
+        file: 08_workspace_build.yml
         apply:
           tags: [build, deploy]
       tags: [build, deploy]
-    - name: "Passo 10: Auto-Start (Serviço Systemd)"
+    - name: "09 - Auto-start service"
       ansible.builtin.include_tasks:
-        file: 10_service.yml
+        file: 09_service.yml
         apply:
           tags: [service, deploy]
       tags: [service, deploy]
-    - name: "Passo 11: Otimização de Performance (Real-Time)"
+    - name: "10 - Performance tuning"
       ansible.builtin.include_tasks:
-        file: 11_performance.yml
+        file: 10_performance.yml
         apply:
           tags: [performance]
       tags: [performance]

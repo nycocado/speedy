@@ -1,10 +1,11 @@
 ---
-- name: 11 - Otimização de Agendamento e Performance
+- name: Scheduling and performance tuning
   block:
-    - name: Permitir que o grupo do usuário aloque prioridades de Tempo Real e MemLock
+    # speedy.service keeps LimitRTPRIO for nodes that request real-time priority.
+    - name: Allow user group real-time priority and memlock
       ansible.builtin.copy:
         dest: /etc/security/limits.d/99-realtime.conf
         content: |
           @{{ ansible_user }} - rtprio 99
           @{{ ansible_user }} - memlock unlimited
-        mode: '0644'
+        mode: "0644"

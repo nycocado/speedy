@@ -1,5 +1,5 @@
 [Unit]
-Description=Serviço de Inicialização do Robô Speedy (ROS 2 Jazzy Nativo)
+Description=Speedy robot startup service (native ROS 2 Jazzy)
 After=network-online.target multi-user.target pigpiod.service
 Wants=network-online.target pigpiod.service
 
@@ -10,9 +10,10 @@ User=root
 Group=root
 WorkingDirectory=/home/{{ ansible_user }}/speedy_ws
 
-# Tuning de Memória. NÃO usar CPUSchedulingPolicy=fifo global: herdado pelos ~14 nós,
-# sob saturação (load>>4) mata o fairness do scheduler e o sistema engasga em vez de
-# degradar suave. Deixar o CFS gerir; LimitRTPRIO mantém-se p/ quem precise pedir RT.
+# Memory tuning. Do NOT use a global CPUSchedulingPolicy=fifo: inherited by all
+# ~14 nodes, it kills scheduler fairness under saturation (load>>4) and the
+# system stutters instead of degrading gracefully. Let CFS manage scheduling;
+# LimitRTPRIO stays for whichever node needs to request real-time priority.
 LimitRTPRIO=99
 LimitMEMLOCK=infinity
 
@@ -20,7 +21,7 @@ Environment="ROS_DOMAIN_ID=0"
 Environment="RMW_IMPLEMENTATION=rmw_cyclonedds_cpp"
 Environment="CYCLONEDDS_URI=file:///home/{{ ansible_user }}/speedy_ws/cyclonedds.xml"
 
-# O comando carrega o ambiente ROS 2 do sistema e o workspace do utilizador
+# Sources the system ROS 2 environment and the user workspace before launching.
 ExecStart=/bin/bash -c "source /opt/ros/jazzy/setup.bash && source /home/{{ ansible_user }}/speedy_ws/install/setup.bash && ros2 launch speedy_bringup speedy.launch.py"
 
 KillMode=mixed

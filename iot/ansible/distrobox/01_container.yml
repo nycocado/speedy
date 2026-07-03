@@ -1,22 +1,22 @@
 ---
-- name: 01 - Criar Distrobox de Desenvolvimento (speedy-dev)
+- name: Create speedy-dev container
   block:
-    - name: Garantir diretórios base
+    - name: Ensure base directories
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
       loop:
         - "{{ ansible_user_dir }}/.config/distrobox"
         - "{{ ansible_user_dir }}/distrobox/speedy-home"
 
-    - name: Sincronizar perfil dedicado do distrobox dev
+    - name: Sync dev container profile
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../files/distrobox-dev.ini"
         dest: "{{ ansible_user_dir }}/.config/distrobox/speedy_dev.ini"
-        mode: '0644'
+        mode: "0644"
 
-    - name: Ajustar home isolada no perfil dev
+    - name: Set isolated home in dev profile
       ansible.builtin.ini_file:
         path: "{{ ansible_user_dir }}/.config/distrobox/speedy_dev.ini"
         section: "speedy-dev"
@@ -24,12 +24,13 @@
         value: "{{ ansible_user_dir }}/distrobox/speedy-home"
         no_extra_spaces: yes
 
-    - name: Verificar se o container de desenvolvimento já existe
+    - name: Check if dev container exists
       ansible.builtin.command: distrobox list
       register: db_list
       changed_when: false
 
-    - name: Executar distrobox-assemble create (idempotente; -e dev_force_recreate=true força rebuild limpo)
+    # Idempotent; pass -e dev_force_recreate=true for a clean rebuild.
+    - name: Assemble dev container
       ansible.builtin.command: >-
         distrobox-assemble create
         {{ '--replace' if (dev_force_recreate | default(false) | bool) else '' }}
@@ -38,7 +39,8 @@
       register: db_out
       changed_when: "'creating' in db_out.stdout or 'replacing' in db_out.stdout"
 
-    - name: Garantir container iniciado (distrobox enter inicia se estiver em Created/parado)
+    # distrobox enter starts the container if it's Created/stopped.
+    - name: Ensure container is running
       ansible.builtin.command:
         cmd: "distrobox enter speedy-dev -- true"
       changed_when: false

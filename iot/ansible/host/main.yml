@@ -1,19 +1,19 @@
 ---
-- name: Setup da Máquina Host (Física)
+- name: Host machine setup
   hosts: host
   tasks:
-    - name: "Passo 1: Permissões de Hardware"
+    - name: "01 - Hardware permissions"
       block:
-        - name: Adicionar utilizador ao grupo dialout (Acesso Serial/ESP32)
+        - name: Add user to dialout group (serial/ESP32 access)
           ansible.builtin.user:
             name: "{{ ansible_user_id }}"
             groups: dialout
             append: yes
           become: yes
 
-    - name: "Passo 2: Rede e Firewall"
+    - name: "02 - Network and firewall"
       block:
-        - name: Habilitar serviços de rede
+        - name: Enable network services
           ansible.builtin.service:
             name: "{{ item }}"
             state: started
@@ -21,7 +21,7 @@
           loop: [avahi-daemon, sshd]
           become: yes
 
-        - name: Regras de firewall
+        - name: Configure firewall rules
           ansible.posix.firewalld:
             service: "{{ item }}"
             state: enabled
@@ -31,7 +31,7 @@
           become: yes
           ignore_errors: yes
 
-        - name: Compartilhamento IPv4 (eth0)
+        - name: Share IPv4 over eth0
           ansible.builtin.shell: nmcli con modify "Wired connection 1" ipv4.method shared
           become: yes
           ignore_errors: yes

@@ -1,25 +1,25 @@
 ---
-- name: 10 - Auto-Start (Serviço Host)
+- name: Auto-start service
   block:
-    - name: Sincronizar configuração CycloneDDS
+    - name: Sync CycloneDDS configuration
       ansible.builtin.copy:
         src: ../files/cyclonedds.xml
         dest: "/home/{{ ansible_user }}/speedy_ws/cyclonedds.xml"
-        mode: '0644'
+        mode: "0644"
 
-    - name: Copiar ficheiro de serviço do Speedy
+    - name: Copy Speedy systemd service file
       ansible.builtin.template:
         src: ../files/speedy.service
         dest: /etc/systemd/system/speedy.service
-        mode: '0644'
+        mode: "0644"
       register: service_file
 
-    - name: Recarregar Systemd
+    - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: yes
       when: service_file.changed
 
-    - name: Habilitar serviços no boot
+    - name: Enable service on boot
       ansible.builtin.systemd:
         name: speedy
         enabled: yes

@@ -1,30 +1,30 @@
 ---
-- name: 02 - ROS 2 Desktop e Foxglove Studio
+- name: ROS 2 Desktop and Foxglove Studio
   block:
-    - name: Garantir dependências do repositório
+    - name: Install repository dependencies
       ansible.builtin.apt:
         name: [curl, gnupg2, python3-pip]
         state: present
       become: yes
 
-    - name: Importar a chave GPG do ROS 2
+    - name: Import ROS 2 GPG key
       ansible.builtin.shell: |
         curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
       args:
         creates: /usr/share/keyrings/ros-archive-keyring.gpg
       become: yes
 
-    - name: Adicionar o repositório APT do ROS 2 (Noble)
+    - name: Add ROS 2 APT repository (Noble)
       ansible.builtin.apt_repository:
         repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu noble main"
         state: present
         filename: ros2
       become: yes
 
-    - name: Instalar ROS 2 Desktop e Foxglove Bridge
+    - name: Install ROS 2 Desktop and Foxglove Bridge
       ansible.builtin.apt:
         update_cache: yes
-        name: 
+        name:
           - ros-jazzy-desktop
           - ros-jazzy-rmw-cyclonedds-cpp
           - python3-rosdep
@@ -34,27 +34,27 @@
         state: present
       become: yes
 
-    - name: Inicializar rosdep (sudo)
+    - name: Initialize rosdep
       ansible.builtin.command: rosdep init
       register: rosdep_init
       failed_when: false
       changed_when: rosdep_init.rc == 0
       become: yes
 
-    - name: Baixar pacote Debian do Foxglove Studio
+    - name: Download Foxglove Studio .deb package
       ansible.builtin.get_url:
         url: https://get.foxglove.dev/desktop/latest/foxglove-studio-latest-linux-amd64.deb
         dest: /tmp/foxglove.deb
-        mode: '0644'
+        mode: "0644"
       become: no
 
-    - name: Instalar Foxglove Studio
+    - name: Install Foxglove Studio
       ansible.builtin.apt:
         deb: /tmp/foxglove.deb
         state: present
       become: yes
 
-    - name: Limpar instalador do Foxglove
+    - name: Remove Foxglove installer
       ansible.builtin.file:
         path: /tmp/foxglove.deb
         state: absent

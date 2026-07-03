@@ -1,26 +1,27 @@
 ---
-- name: 04 - Hardware e Periféricos
+- name: Hardware and peripherals
   block:
-    - name: Instalar ferramentas de hardware (dtc, i2c)
+    - name: Install hardware tools (dtc, i2c)
       ansible.builtin.apt:
         name: [dphys-swapfile, device-tree-compiler, libi2c-dev, i2c-tools]
         state: present
 
-    - name: Aumentar o tamanho do SWAP (4GB) para evitar travamentos no colcon build
+    # 4GB avoids colcon build running out of memory and locking up.
+    - name: Increase swap size to 4GB
       ansible.builtin.lineinfile:
         path: /etc/dphys-swapfile
-        regexp: '^#?CONF_SWAPSIZE='
-        line: 'CONF_SWAPSIZE=4096'
+        regexp: "^#?CONF_SWAPSIZE="
+        line: "CONF_SWAPSIZE=4096"
         create: yes
 
-    - name: Remover limite máximo de SWAP (CONF_MAXSWAP)
+    - name: Remove max swap limit (CONF_MAXSWAP)
       ansible.builtin.lineinfile:
         path: /etc/dphys-swapfile
-        regexp: '^#?CONF_MAXSWAP='
-        line: 'CONF_MAXSWAP=4096'
+        regexp: "^#?CONF_MAXSWAP="
+        line: "CONF_MAXSWAP=4096"
       register: swap_config
 
-    - name: Garantir parametros de fsck no cmdline.txt
+    - name: Set fsck parameters in cmdline.txt
       ansible.builtin.replace:
         path: /boot/firmware/cmdline.txt
         regexp: '^((?!.*\b{{ item }}\b).*)$'
@@ -29,14 +30,14 @@
         - "fsck.repair=yes"
         - "fsck.mode=force"
 
-    - name: Aplicar nova configuração de SWAP
+    - name: Apply new swap configuration
       ansible.builtin.shell: |
         dphys-swapfile swapoff
         dphys-swapfile setup
         dphys-swapfile swapon
       when: swap_config.changed
 
-    - name: Configurar Overlays e Parâmetros no config.txt
+    - name: Configure overlays and parameters in config.txt
       ansible.builtin.lineinfile:
         path: /boot/firmware/config.txt
         line: "{{ item.line }}"
@@ -48,39 +49,60 @@
         - { line: "dtparam=spi=off", regexp: "^dtparam=spi=" }
         - { line: "camera_auto_detect=1", regexp: "^camera_auto_detect=" }
         - { line: "dtoverlay=ov5647,cam0", regexp: "^dtoverlay=ov5647" }
-        - { line: "dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4", regexp: "^dtoverlay=pwm-2chan" }
+        - {
+            line: "dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4",
+            regexp: "^dtoverlay=pwm-2chan",
+          }
 
-    - name: Garantir que o modulo i2c-dev carrega no boot
+    - name: Load i2c-dev module on boot
       ansible.builtin.lineinfile:
         path: /etc/modules
         line: "i2c-dev"
         state: present
 
-    - name: Configurar regras de udev para Periféricos
+    - name: Configure udev rules for peripherals
       ansible.builtin.copy:
         dest: "/etc/udev/rules.d/{{ item.name }}"
         content: "{{ item.content }}"
-        mode: '0644'
+        mode: "0644"
       loop:
-        - { name: '10-ldlidar.rules', content: 'KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0666", GROUP:="dialout", SYMLINK+="ldlidar"' }
-        - { name: '12-pwm.rules', content: 'SUBSYSTEM=="pwm", KERNEL=="pwmchip*", ACTION=="add", RUN+="/bin/chgrp -R gpio /sys%p", RUN+="/bin/chmod -R g+w /sys%p"' }
-        - { name: '99-gpio.rules', content: 'SUBSYSTEM=="gpio", KERNEL=="gpiochip*", ACTION=="add", GROUP="gpio", MODE="0660"' }
-        - { name: '99-gpiomem.rules', content: 'KERNEL=="gpiomem", GROUP="gpio", MODE="0660"' }
-        - { name: '99-i2c.rules', content: 'KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"' }
-        - { name: '99-joy.rules', content: 'KERNEL=="js*", MODE="0666", GROUP="input"' }
+        - {
+            name: "10-ldlidar.rules",
+            content: 'KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE:="0666", GROUP:="dialout", SYMLINK+="ldlidar"',
+          }
+        - {
+            name: "12-pwm.rules",
+            content: 'SUBSYSTEM=="pwm", KERNEL=="pwmchip*", ACTION=="add", RUN+="/bin/chgrp -R gpio /sys%p", RUN+="/bin/chmod -R g+w /sys%p"',
+          }
+        - {
+            name: "99-gpio.rules",
+            content: 'SUBSYSTEM=="gpio", KERNEL=="gpiochip*", ACTION=="add", GROUP="gpio", MODE="0660"',
+          }
+        - {
+            name: "99-gpiomem.rules",
+            content: 'KERNEL=="gpiomem", GROUP="gpio", MODE="0660"',
+          }
+        - {
+            name: "99-i2c.rules",
+            content: 'KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"',
+          }
+        - {
+            name: "99-joy.rules",
+            content: 'KERNEL=="js*", MODE="0666", GROUP="input"',
+          }
 
-    - name: Garantir que o grupo gpio existe
+    - name: Ensure gpio group exists
       ansible.builtin.group:
         name: gpio
         state: present
 
-    - name: Adicionar utilizador aos grupos de hardware
+    - name: Add user to hardware groups
       ansible.builtin.user:
         name: "{{ ansible_user }}"
         groups: "dialout,video,i2c,gpio,render,input"
         append: yes
 
-    - name: Recarregar regras de udev
+    - name: Reload udev rules
       ansible.builtin.shell: |
         udevadm control --reload-rules
         udevadm trigger

@@ -1,17 +1,17 @@
 ---
-- name: 01 - Sistema Base (RPi OS)
+- name: Base system (RPi OS)
   block:
-    - name: Atualizar cache do APT e pacotes
+    - name: Update APT cache and upgrade packages
       ansible.builtin.apt:
         update_cache: yes
         upgrade: dist
 
-    - name: Instalar ferramentas essenciais no Host
+    - name: Install essential tools
       ansible.builtin.apt:
         name: [vim, v4l-utils, i2c-tools, rfkill, htop]
         state: present
 
-    - name: Garantir que o EEPROM está atualizado
+    - name: Ensure EEPROM is up to date
       ansible.builtin.command: rpi-eeprom-update -a
       register: eeprom_status
       changed_when: "'BOOTLOADER: up-to-date' not in eeprom_status.stdout"

@@ -1,24 +1,24 @@
 ---
-- name: 07 - Instalar ROS 2 Jazzy Nativo (Rospian)
+- name: Install ROS 2 Jazzy (Rospian)
   block:
-    - name: Garantir dependências para gerir repositórios
+    - name: Install repository management dependencies
       ansible.builtin.apt:
         name: [curl, gnupg]
         state: present
 
-    - name: Importar a chave GPG do Rospian
+    - name: Import Rospian GPG key
       ansible.builtin.shell: |
         curl -fsSL https://rospian.github.io/rospian-repo/public/rospian-archive-keyring.asc | gpg --dearmor > /usr/share/keyrings/rospian-archive-keyring.gpg
       args:
         creates: /usr/share/keyrings/rospian-archive-keyring.gpg
 
-    - name: Adicionar o repositório APT do Rospian (trixie-jazzy)
+    - name: Add Rospian APT repository (trixie-jazzy)
       ansible.builtin.apt_repository:
         repo: "deb [arch=arm64 signed-by=/usr/share/keyrings/rospian-archive-keyring.gpg] https://rospian.github.io/rospian-repo trixie-jazzy main"
         state: present
         filename: rospian
 
-    - name: Atualizar cache e instalar ROS 2 Jazzy Base e Pacotes Autónomos
+    - name: Update cache and install ROS 2 Jazzy base and autonomy packages
       ansible.builtin.apt:
         update_cache: yes
         name:
