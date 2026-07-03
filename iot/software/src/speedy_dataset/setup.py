@@ -17,7 +17,7 @@ setup(
     zip_safe=True,
     maintainer='nycocado',
     maintainer_email='nycolascanutto@gmail.com',
-    description='Coletor de fotos para treinamento de IA do robô Speedy',
+    description="Photo collector for training the Speedy robot's AI model.",
     license='Proprietary',
     tests_require=['pytest'],
     entry_points={

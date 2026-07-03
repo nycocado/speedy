@@ -5,18 +5,15 @@ from sensor_msgs.msg import Joy
 from std_msgs.msg import String
 from controller_manager_msgs.srv import SwitchController
 
+
 class SpeedySupervisorNode(Node):
-    """
-    Máquina de Estados de Alto Nível do Speedy.
-    Alterna ativamente entre controladores de hardware (Manual Direto vs Cinemático).
-    """
     def __init__(self):
         super().__init__('speedy_supervisor')
 
         self.declare_parameter('btn_select', 10)
         self.declare_parameter('btn_start', 11)
         self.declare_parameter('btn_estop', 1)
-        self.declare_parameter('hold_duration', 2.0)  # s segurando SELECT+START p/ trocar modo
+        self.declare_parameter('hold_duration', 2.0)
 
         self.btn_select = self.get_parameter('btn_select').value
         self.btn_start = self.get_parameter('btn_start').value
@@ -27,24 +24,19 @@ class SpeedySupervisorNode(Node):
         self.hold_start_time = None
         self.toggling = False
 
-        # E-stop: estado latch. Quando ativo, publica 'ESTOP' e a fonte de comando
-        # (teleop) zera a saída. Solto/reativado pelo botão btn_estop (borda de subida).
         self.estopped = False
         self.estop_prev_pressed = False
 
-        # Publishers / Subscriptions
         self.pub_state = self.create_publisher(String, '/speedy_supervisor/state', 10)
         self.sub_joy = self.create_subscription(Joy, '/joy', self.joy_callback, 10)
-        self.switch_client = self.create_client(SwitchController, '/controller_manager/switch_controller')
+        self.switch_client = self.create_client(
+            SwitchController, '/controller_manager/switch_controller')
 
-        # Timer para publicar estado periodicamente (1Hz)
         self.create_timer(1.0, self.publish_state)
 
         self.get_logger().info('[SUPERVISOR] Node initialized.')
-        # Não força um switch inicial: os spawners já sobem os controladores manuais
-        # ATIVOS e o bicycle --inactive, então o hardware nasce em MANUAL. Forçar uma
-        # troca p/ MANUAL aqui (sob STRICT) dispararia "controller already active".
-        self.get_logger().info('[SUPERVISOR] Estado inicial: MANUAL (controladores manuais já ativos).')
+        self.get_logger().info(
+            '[SUPERVISOR] Estado inicial: MANUAL (controladores manuais já ativos).')
 
     def publish_state(self):
         msg = String()
@@ -52,13 +44,13 @@ class SpeedySupervisorNode(Node):
         self.pub_state.publish(msg)
 
     def switch_to_mode(self, target):
-        """Pede a troca de controladores. self.state só muda quando o switch CONFIRMA."""
         if not self.switch_client.wait_for_service(timeout_sec=2.0):
-            self.get_logger().warn(f'[SUPERVISOR] SwitchController indisponível — modo mantido em {self.state}.')
+            self.get_logger().warn(
+                f'[SUPERVISOR] SwitchController indisponível — modo mantido em {
+                    self.state}.')
             return
 
         req = SwitchController.Request()
-        # STRICT: atomic transition, no partial failures.
         req.strictness = SwitchController.Request.STRICT
         if target == 'AUTO':
             req.activate_controllers = ['bicycle_steering_controller']
@@ -74,14 +66,14 @@ class SpeedySupervisorNode(Node):
         try:
             ok = future.result().ok
         except Exception as e:
-            self.get_logger().error(f'[SUPERVISOR] Erro no SwitchController: {e} — modo mantido em {self.state}.')
+            self.get_logger().error(
+                f'[SUPERVISOR] Erro no SwitchController: {e} — modo mantido em {
+                    self.state}.')
             return
         if ok:
             self.state = target
             self.get_logger().warn(f'[SUPERVISOR] Hardware em {self.state}.')
         else:
-            # Estado NÃO muda: o hardware ficou onde estava. Não anuncia AUTO sem o
-            # bicycle ativo (senão o reactive comanda no vazio e o manual segue vivo).
             self.get_logger().error(
                 f'[SUPERVISOR] Falha ao trocar p/ {target} — modo mantido em {self.state}. '
                 f'Cheque "ros2 control list_controllers".')
@@ -92,7 +84,6 @@ class SpeedySupervisorNode(Node):
         def pressed(idx):
             return len(msg.buttons) > idx and msg.buttons[idx] == 1
 
-        # E-stop: borda de subida do botão alterna o estado de emergência (latch).
         estop_pressed = pressed(self.btn_estop)
         if estop_pressed and not self.estop_prev_pressed:
             self.estopped = not self.estopped
@@ -103,7 +94,6 @@ class SpeedySupervisorNode(Node):
             self.publish_state()
         self.estop_prev_pressed = estop_pressed
 
-        # Em e-stop não há troca de modo; o teleop zera a saída ao ver o estado ESTOP.
         if self.estopped:
             self.hold_start_time = None
             self.toggling = False
@@ -126,12 +116,14 @@ class SpeedySupervisorNode(Node):
             self.hold_start_time = None
             self.toggling = False
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = SpeedySupervisorNode()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

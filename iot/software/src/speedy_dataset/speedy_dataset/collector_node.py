@@ -14,11 +14,11 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image, Joy, CameraInfo
 from std_msgs.msg import String
 
+
 class DatasetCollector(Node):
     def __init__(self):
         super().__init__('dataset_collector')
 
-        # Parâmetros
         self.declare_parameter('save_path', '~/dataset')
         self.declare_parameter('burst_period', 0.5)
         self.declare_parameter('button_index', 3)
@@ -31,39 +31,31 @@ class DatasetCollector(Node):
         self.should_undistort = self.get_parameter('undistort').value
         self.should_grayscale = self.get_parameter('grayscale').value
 
-        # Estado
         self.latest_image = None
         self.camera_info = None
         self.button_pressed = False
         self.last_burst_time = 0
         self.is_manual_mode = False
 
-        # OpenCV
         self.bridge = CvBridge()
         self.map1, self.map2 = None, None
 
-        # Garante que a pasta existe
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
-        # Contagem inicial de fotos já existentes; depois mantida em memória (evita listdir por foto).
         self.photo_count = len([f for f in os.listdir(self.save_path) if f.endswith('.jpg')])
 
-        # Escrita de imagem numa thread dedicada para não bloquear o executor (burst).
         self.save_queue = queue.Queue(maxsize=100)
         self.stop_worker = False
         self.worker = threading.Thread(target=self._writer_loop, daemon=True)
         self.worker.start()
 
-        # Publishers
         self.info_pub = self.create_publisher(String, '/speedy_dataset/info', 10)
 
-        # Subscriptions
         self._image_sub = None
         self.create_subscription(CameraInfo, '/speedy_camera/camera_info', self.info_callback, 10)
         self.create_subscription(Joy, '/joy', self.joy_callback, 10)
-        
-        # Monitor de estado do robô (para saber se está em Manual)
+
         self.create_subscription(String, '/speedy_supervisor/state', self.state_callback, 10)
 
         self.get_logger().info("[DATASET] Node initialized. Mode: Manual Only.")
@@ -71,25 +63,27 @@ class DatasetCollector(Node):
     def state_callback(self, msg):
         was_manual = self.is_manual_mode
         self.is_manual_mode = (msg.data.upper() == "MANUAL")
-        
+
         if self.is_manual_mode and not was_manual:
-            self._image_sub = self.create_subscription(Image, '/speedy_camera/image_raw', self.image_callback, 10)
+            self._image_sub = self.create_subscription(
+                Image, '/speedy_camera/image_raw', self.image_callback, 10)
             self.get_logger().info('[DATASET] Modo MANUAL: subscrito no /image_raw.')
         elif not self.is_manual_mode and was_manual:
             if self._image_sub is not None:
                 self.destroy_subscription(self._image_sub)
                 self._image_sub = None
-                self.get_logger().info('[DATASET] Modo AUTO: cancelando subscrição do /image_raw para poupar CPU.')
+                self.get_logger().info(
+                    '[DATASET] Modo AUTO: cancelando subscrição do /image_raw para poupar CPU.')
 
     def info_callback(self, msg):
         if self.camera_info is None and self.should_undistort:
             self.camera_info = msg
-            # Pré-calcula os mapas de retificação para economizar CPU
             k = np.array(msg.k).reshape((3, 3))
             d = np.array(msg.d)
             w, h = msg.width, msg.height
             new_k, _ = cv2.getOptimalNewCameraMatrix(k, d, (w, h), 1, (w, h))
-            self.map1, self.map2 = cv2.initUndistortRectifyMap(k, d, None, new_k, (w, h), cv2.CV_32FC1)
+            self.map1, self.map2 = cv2.initUndistortRectifyMap(
+                k, d, None, new_k, (w, h), cv2.CV_32FC1)
             self.get_logger().info("[DATASET] Rectification maps calculated successfully.")
 
     def image_callback(self, msg):
@@ -106,7 +100,7 @@ class DatasetCollector(Node):
 
         if is_now_pressed and not self.button_pressed:
             self.save_photo("single")
-        
+
         if is_now_pressed:
             now = time.time()
             if (now - self.last_burst_time) >= self.burst_period:
@@ -117,7 +111,6 @@ class DatasetCollector(Node):
         self.button_pressed = is_now_pressed
 
     def save_photo(self, mode):
-        # Apenas enfileira; a escrita (lenta) acontece na thread worker.
         if self.latest_image is None:
             return
         try:
@@ -155,6 +148,7 @@ class DatasetCollector(Node):
             except Exception as e:
                 self.get_logger().error(f"[DATASET] Error saving image: {e}")
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = DatasetCollector()
@@ -166,6 +160,7 @@ def main(args=None):
         node.stop_worker = True
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

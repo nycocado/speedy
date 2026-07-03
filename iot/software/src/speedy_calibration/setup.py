@@ -14,7 +14,7 @@ setup(
     zip_safe=True,
     maintainer='nycocado',
     maintainer_email='nycolascanutto@gmail.com',
-    description='Utilitários de calibração do Speedy (servo, sensores).',
+    description='Speedy calibration utilities (servo, sensors).',
     license='Proprietary',
     entry_points={
         'console_scripts': [

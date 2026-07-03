@@ -6,18 +6,13 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import LogInfo
 
-def generate_launch_description():
-    """
-    Script de inicialização de teleoperação manual e ferramentas de calibração.
-    """
 
-    # Configs
+def generate_launch_description():
     bringup_dir = get_package_share_directory('speedy_bringup')
     teleop_config_path = os.path.join(bringup_dir, 'config', 'teleop.yaml')
     supervisor_config_path = os.path.join(bringup_dir, 'config', 'supervisor.yaml')
     hardware_config_path = os.path.join(bringup_dir, 'config', 'hardware.yaml')
 
-    # Extração de limites do hardware
     max_steer = 0.785
     max_linear = 1.0
     try:
@@ -27,17 +22,15 @@ def generate_launch_description():
                             float(hw['max_steering_angle_right_deg']))
             max_steer = math.radians(steer_deg)
             max_linear = float(hw['max_linear_velocity'])
-            wheelbase = float(hw['wheelbase'])
     except Exception as e:
         print(f"[Aviso] Nao foi possivel ler hardware.yaml. Usando defaults. Erro: {e}")
 
     log_msg = LogInfo(
-        msg=f"\n{'='*60}\n  [SPEEDY TELEOP] Initializing Manual Control System...\n"
-            f"  - Steering Limit: {max_steer:.4f} rad\n"
-            f"  - Velocity Limit: {max_linear} m/s\n"
+        msg=f"\n{'=' * 60}\n  [SPEEDY TELEOP] Initializing Manual Control System...\n"
+        f"  - Steering Limit: {max_steer:.4f} rad\n"
+        f"  - Velocity Limit: {max_linear} m/s\n"
     )
 
-    # Joystick
     joy_node = Node(
         package='joy',
         executable='joy_node',
@@ -50,7 +43,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Teleop
     teleop_node = Node(
         package='speedy_teleop',
         executable='racing_teleop',
@@ -65,7 +57,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Supervisor
     supervisor_node = Node(
         package='speedy_supervisor',
         executable='speedy_supervisor',

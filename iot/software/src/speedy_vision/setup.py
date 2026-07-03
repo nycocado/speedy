@@ -11,14 +11,14 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name, 'models', 'obstacle_detector'), 
+        (os.path.join('share', package_name, 'models', 'obstacle_detector'),
          glob('models/obstacle_detector/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='nycocado',
     maintainer_email='nycolascanutto@gmail.com',
-    description='Deteção de linha por câmera.',
+    description='Camera-based line and obstacle detection.',
     license='Proprietary',
     entry_points={
         'console_scripts': [

@@ -10,37 +10,34 @@ from launch.substitutions import Command, FindExecutable, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
 
+
 def generate_launch_description():
-    """
-    Script de inicialização da infraestrutura central do Speedy.
-    Orquestra ROS2 Control (RPi PWM), Foxglove e Sensores.
-    """
-    
-    # Paths
     speedy_description_path = FindPackageShare('speedy_description')
     speedy_bringup_path = FindPackageShare('speedy_bringup')
-    
+
     urdf_path = PathJoinSubstitution([speedy_description_path, 'urdf', 'speedy.urdf.xacro'])
-    controller_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'controllers.yaml'])
+    controller_config_path = PathJoinSubstitution(
+        [speedy_bringup_path, 'config', 'controllers.yaml'])
     hardware_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'hardware.yaml'])
     imu_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'imu.yaml'])
     ekf_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'ekf.yaml'])
     vision_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'vision.yaml'])
-    navigation_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'navigation.yaml'])
+    navigation_config_path = PathJoinSubstitution(
+        [speedy_bringup_path, 'config', 'navigation.yaml'])
     camera_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'camera.yaml'])
     lidar_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'lidar.yaml'])
     foxglove_config_path = PathJoinSubstitution([speedy_bringup_path, 'config', 'foxglove.yaml'])
 
-    # Gera URDF passando pelo Xacro
     robot_description_content = Command([
-        PathJoinSubstitution([FindExecutable(name='xacro')]), ' ', 
+        PathJoinSubstitution([FindExecutable(name='xacro')]), ' ',
         urdf_path, ' ',
         'hardware_config_file:=', hardware_config_path
     ])
-    robot_description = {'robot_description': ParameterValue(robot_description_content, value_type=str)}
+    robot_description = {
+        'robot_description': ParameterValue(
+            robot_description_content,
+            value_type=str)}
 
-    # Fonte única: injeta no bicycle_steering_controller as dimensões/limites reais do
-    # hardware.yaml.
     controller_overrides_path = ''
     reactive_params = {}
     try:
@@ -48,7 +45,7 @@ def generate_launch_description():
                                'config', 'hardware.yaml')
         with open(hw_yaml, 'r') as f:
             hw = yaml.safe_load(f)['speedy_hardware']['ros__parameters']
-            
+
         steer_rad = math.radians(max(float(hw['max_steering_angle_left_deg']),
                                      float(hw['max_steering_angle_right_deg'])))
         max_lin = float(hw['max_linear_velocity'])
@@ -71,7 +68,7 @@ def generate_launch_description():
         yaml.dump(overrides_dict, tmp_param_file)
         tmp_param_file.close()
         controller_overrides_path = tmp_param_file.name
-        
+
         reactive_params = {
             'wheelbase': wheelbase,
             'steer_max': steer_rad,
@@ -79,14 +76,12 @@ def generate_launch_description():
     except Exception as e:
         print(f"[Aviso] Falha ao injetar params: {e}")
 
-    # Log informativo
     log_msg = LogInfo(
-        msg=f"\n{'='*60}\n  [SPEEDY BRINGUP] Initializing Core Infrastructure...\n"
-            f"  [ROS2 CONTROL] Mode: Direct RPi PWM\n"
-            f"  [TELEMETRY] Foxglove Bridge: Ready\n{'='*60}\n"
+        msg=f"\n{'=' * 60}\n  [SPEEDY BRINGUP] Initializing Core Infrastructure...\n"
+        f"  [ROS2 CONTROL] Mode: Direct RPi PWM\n"
+        f"  [TELEMETRY] Foxglove Bridge: Ready\n{'=' * 60}\n"
     )
 
-    # Robot State Publisher
     robot_state_pub_node = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -94,7 +89,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Controller Manager
     cm_params = [robot_description, controller_config_path]
     if controller_overrides_path:
         cm_params.append(controller_overrides_path)
@@ -106,7 +100,6 @@ def generate_launch_description():
         output='both'
     )
 
-    # Spawners
     joint_state_broadcaster_spawner = Node(
         package='controller_manager',
         executable='spawner',
@@ -115,7 +108,11 @@ def generate_launch_description():
     bicycle_steering_controller_spawner = Node(
         package='controller_manager',
         executable='spawner',
-        arguments=['bicycle_steering_controller', '--controller-manager', '/controller_manager', '--inactive'],
+        arguments=[
+            'bicycle_steering_controller',
+            '--controller-manager',
+            '/controller_manager',
+            '--inactive'],
     )
     manual_steering_controller_spawner = Node(
         package='controller_manager',
@@ -128,7 +125,6 @@ def generate_launch_description():
         arguments=['manual_drive_controller', '--controller-manager', '/controller_manager'],
     )
 
-    # Foxglove
     foxglove_bridge = Node(
         package='foxglove_bridge',
         executable='foxglove_bridge',
@@ -136,7 +132,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Sensores
     camera_node = Node(
         package='camera_ros',
         executable='camera_node',
@@ -169,7 +164,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Visão e Navegação
     line_detector_node = Node(
         package='speedy_vision',
         executable='line_detector',

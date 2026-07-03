@@ -14,18 +14,6 @@ from nav_msgs.msg import Odometry
 
 
 class ServoCalibratorNode(Node):
-    """
-    Aquisição de dados para calibração da direção.
-
-    Relaciona o pulso comandado (PWM) com o ângulo de esterço FÍSICO, estimado
-    pelo modelo bicycle: delta = atan(omega * L / v).
-
-    Medir só o yaw rate (omega) não basta: omega escala com a velocidade, e a
-    média sobre a janela inteira é diluída por qualquer tempo parado. Aqui só
-    entram amostras em regime (v >= min_velocity), e o ângulo é calculado por
-    amostra a partir do par (omega, v) sincronizado.
-    """
-
     def __init__(self):
         super().__init__('servo_calibrator')
 
@@ -33,8 +21,8 @@ class ServoCalibratorNode(Node):
         self.declare_parameter('imu_topic', '/imu/mpu6050')
         self.declare_parameter('pulse_topic', '/steering/pulse_ms')
         self.declare_parameter('odom_topic', '/front_wheels/odom')
-        self.declare_parameter('wheelbase', 0.251)        # m — bate com hardware.yaml
-        self.declare_parameter('min_velocity', 0.05)      # m/s — gate de regime
+        self.declare_parameter('wheelbase', 0.251)
+        self.declare_parameter('min_velocity', 0.05)
 
         self._btn_index = self.get_parameter('select_button').value
         self._imu_topic = self.get_parameter('imu_topic').value
@@ -43,41 +31,53 @@ class ServoCalibratorNode(Node):
         self._wheelbase = float(self.get_parameter('wheelbase').value)
         self._min_velocity = float(self.get_parameter('min_velocity').value)
 
-        # Estado
         self._is_recording = False
         self._prev_btn_state = False
         self._last_pulse_received = 0.0
         self._last_v = 0.0
 
-        # Amostras aceites (em regime): pares sincronizados omega/v + pulso
-        self._omega_samples = []   # rad/s
-        self._v_samples = []       # m/s
-        self._pulse_samples = []   # ms
-        self._dropped_slow = 0     # amostras descartadas por v < min_velocity
+        self._omega_samples = []
+        self._v_samples = []
+        self._pulse_samples = []
+        self._dropped_slow = 0
 
         self._cb_group = ReentrantCallbackGroup()
 
-        # Resultados latched (TRANSIENT_LOCAL): persistem para assinantes que
-        # chegam atrasados (foxglove_bridge), evitando perder o valor publicado.
         latched = QoSProfile(
             depth=1,
             reliability=QoSReliabilityPolicy.RELIABLE,
             durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
             history=QoSHistoryPolicy.KEEP_LAST,
         )
-        self._angle_pub = self.create_publisher(Float64, '/servo_calibration/measured_angle_deg', latched)
-        self._pulse_pub = self.create_publisher(Float64, '/servo_calibration/output_pulse', latched)
-        self._omega_pub = self.create_publisher(Float64, '/servo_calibration/measured_omega_z', latched)
-        self._vel_pub = self.create_publisher(Float64, '/servo_calibration/measured_velocity', latched)
+        self._angle_pub = self.create_publisher(
+            Float64, '/servo_calibration/measured_angle_deg', latched)
+        self._pulse_pub = self.create_publisher(
+            Float64, '/servo_calibration/output_pulse', latched)
+        self._omega_pub = self.create_publisher(
+            Float64, '/servo_calibration/measured_omega_z', latched)
+        self._vel_pub = self.create_publisher(
+            Float64, '/servo_calibration/measured_velocity', latched)
 
-        # Subs sempre-ativas. O custo ocioso é só desserialização + early-return
-        # (os callbacks de aquisição só acumulam quando _is_recording). Não se
-        # destroem subs em runtime: fazê-lo de dentro de um callback corrompe o
-        # wait set do executor (InvalidHandle) e mata o nó.
-        self.create_subscription(Joy, '/joy', self._joy_callback, 10, callback_group=self._cb_group)
-        self.create_subscription(Imu, self._imu_topic, self._imu_callback, 10, callback_group=self._cb_group)
-        self.create_subscription(Float64, self._pulse_topic, self._pulse_callback, 10, callback_group=self._cb_group)
-        self.create_subscription(Odometry, self._odom_topic, self._odom_callback, 10, callback_group=self._cb_group)
+        self.create_subscription(Joy, '/joy', self._joy_callback,
+                                 10, callback_group=self._cb_group)
+        self.create_subscription(
+            Imu,
+            self._imu_topic,
+            self._imu_callback,
+            10,
+            callback_group=self._cb_group)
+        self.create_subscription(
+            Float64,
+            self._pulse_topic,
+            self._pulse_callback,
+            10,
+            callback_group=self._cb_group)
+        self.create_subscription(
+            Odometry,
+            self._odom_topic,
+            self._odom_callback,
+            10,
+            callback_group=self._cb_group)
 
         self.get_logger().info(
             f'CALIBRATION_NODE_READY [SELECT_BTN: {self._btn_index}] '
@@ -94,8 +94,6 @@ class ServoCalibratorNode(Node):
         if not self._is_recording:
             return
         v = self._last_v
-        # Gate de regime: descarta amostras quase-paradas, onde delta=atan(omega*L/v)
-        # amplifica ruído e a média é diluída.
         if v < self._min_velocity:
             self._dropped_slow += 1
             return
@@ -139,9 +137,9 @@ class ServoCalibratorNode(Node):
         std_v = statistics.pstdev(self._v_samples) if n > 1 else 0.0
         mean_omega = statistics.fmean(self._omega_samples)
         std_omega = statistics.pstdev(self._omega_samples) if n > 1 else 0.0
-        mean_pulse = statistics.fmean(self._pulse_samples) if self._pulse_samples else self._last_pulse_received
+        mean_pulse = statistics.fmean(
+            self._pulse_samples) if self._pulse_samples else self._last_pulse_received
 
-        # Ângulo por amostra (modelo bicycle) e estatística sobre ele.
         angles_deg = [
             math.degrees(math.atan(w * self._wheelbase / v))
             for w, v in zip(self._omega_samples, self._v_samples)
@@ -162,7 +160,6 @@ class ServoCalibratorNode(Node):
             f'[N: {n} aceites, {self._dropped_slow} lentas]'
         )
 
-        # Avisos de qualidade: regime instável compromete a estimativa do ângulo.
         if mean_v > 1e-6 and (std_v / mean_v) > 0.30:
             self.get_logger().warn(
                 'VELOCIDADE_INSTAVEL: desvio da velocidade > 30%. '

@@ -21,57 +21,36 @@ def _ang_diff(ref, cur):
 
 
 class ReactiveController(Node):
-    """Navegação com Visão (Desejo) + Mini-DWA (Veto).
-
-    Em vez de lutar com a visão fugindo do obstáculo mais próximo, este algoritmo
-    simula fisicamente 21 trajetórias (arcos de direção). Se um arco colidir com o
-    LiDAR, é cortado. Dos arcos seguros que sobram, ele escolhe o mais parecido com 
-    o que a câmara pediu. Isto permite contornar labirintos/chicanes suavemente.
-    """
-
     def __init__(self):
         super().__init__('reactive_controller')
 
-        # --- Hardware / Geometria ---
         self.declare_parameter('steer_max', 0.4363)
         self.declare_parameter('wheelbase', 0.251)
-        self.declare_parameter('steer_rate_max', 3.0)    # rad/s: Suaviza o servo
+        self.declare_parameter('steer_rate_max', 3.0)
 
-        # --- PID de guiamento ---
         self.declare_parameter('kp_lat', 0.5)
         self.declare_parameter('ki_lat', 0.1)
         self.declare_parameter('kd_lat', 0.05)
         self.declare_parameter('i_max', 0.3)
-        self.declare_parameter('k_heading', 0.3)         # Feedforward ( ROI longe )
-        self.declare_parameter('k_reacquire', 0.3)       # Viés para 1 fita
+        self.declare_parameter('k_heading', 0.3)
+        self.declare_parameter('k_reacquire', 0.3)
 
-        # --- AVOID -> Mini-DWA ---
-        self.declare_parameter('wall_detect_range', 0.80)  # Lookahead do DWA
-        self.declare_parameter('dwa_half_width', 0.0725)   # 14.5cm total / 2
-        # Mantidos declarados para não quebrar o YAML
-        self.declare_parameter('avoid_fov_deg', 100.0)
-        self.declare_parameter('k_avoid', 0.8)
-        self.declare_parameter('dodge_max_frac', 0.6)
-        self.declare_parameter('vision_suppress', 0.7)
-        self.declare_parameter('center_threat_deg', 10.0)
+        self.declare_parameter('wall_detect_range', 0.80)
+        self.declare_parameter('dwa_half_width', 0.0725)
 
-        # --- Heading-hold (BLIND / Queda) ---
         self.declare_parameter('kp_yaw', 1.0)
-        self.declare_parameter('blind_momentum_timeout', 1.5) # Tempo de "fé" na queda da rampa
+        self.declare_parameter('blind_momentum_timeout', 1.5)
 
-        # --- Velocidade ---
         self.declare_parameter('v_base', 0.6)
         self.declare_parameter('v_min', 0.15)
-        self.declare_parameter('ramp_speed', 0.8)        # Usada como velocidade de inércia
+        self.declare_parameter('ramp_speed', 0.8)
 
-        # --- Segurança ---
         self.declare_parameter('hard_stop_range', 0.15)
         self.declare_parameter('safety_fov_deg', 60.0)
 
         self.declare_parameter('control_hz', 20.0)
         self.declare_parameter('navigation_enabled', True)
 
-        # --- Tópicos ---
         self.declare_parameter('cmd_topic', '/bicycle_steering_controller/reference')
         self.declare_parameter('state_topic', '/speedy_supervisor/state')
         self.declare_parameter('scan_topic', '/scan')
@@ -80,7 +59,6 @@ class ReactiveController(Node):
         self.declare_parameter('side_topic', '/line_detector/visible_side')
         self.declare_parameter('odom_topic', '/odometry/filtered')
 
-        # --- Estado ---
         self._wheelbase = self.get_parameter('wheelbase').value
         self._steer_max = self.get_parameter('steer_max').value
 
@@ -93,7 +71,7 @@ class ReactiveController(Node):
         self._yaw = None
         self._yaw_ref = None
         self._mode = 'MANUAL'
-        
+
         self._last_line_time = 0.0
 
         self._i_lat = 0.0
@@ -105,23 +83,28 @@ class ReactiveController(Node):
         self.create_subscription(Float32, g('lateral_topic').value, self._lat_cb, 10)
         self.create_subscription(Float32, g('heading_topic').value, self._head_cb, 10)
         self.create_subscription(Float32, g('side_topic').value, self._side_cb, 10)
-        self.create_subscription(LaserScan, g('scan_topic').value, self._scan_cb, qos_profile_sensor_data)
+        self.create_subscription(
+            LaserScan,
+            g('scan_topic').value,
+            self._scan_cb,
+            qos_profile_sensor_data)
         self.create_subscription(Odometry, g('odom_topic').value, self._odom_cb, 10)
         self.create_subscription(String, g('state_topic').value, self._state_cb, 10)
         self._cmd_pub = self.create_publisher(TwistStamped, g('cmd_topic').value, 10)
 
-        # Debug
-        self._dbg_steer_raw_pub = self.create_publisher(Float32, '/reactive_controller/steer_raw', 1)
-        self._dbg_steer_out_pub = self.create_publisher(Float32, '/reactive_controller/steer_out', 1)
+        self._dbg_steer_raw_pub = self.create_publisher(
+            Float32, '/reactive_controller/steer_raw', 1)
+        self._dbg_steer_out_pub = self.create_publisher(
+            Float32, '/reactive_controller/steer_out', 1)
         self._dbg_v_pub = self.create_publisher(Float32, '/reactive_controller/v_cmd', 1)
         self._dbg_i_lat_pub = self.create_publisher(Float32, '/reactive_controller/i_lat', 1)
         self._dbg_mode_pub = self.create_publisher(String, '/reactive_controller/mode', 1)
-        self._dbg_diag_pub = self.create_publisher(DiagnosticStatus, '/reactive_controller/diag', 1)
+        self._dbg_diag_pub = self.create_publisher(
+            DiagnosticStatus, '/reactive_controller/diag', 1)
 
         hz = g('control_hz').value
         self.create_timer(1.0 / hz, self._control_loop)
 
-    # ---- Callbacks ----
     def _lat_cb(self, msg):
         self._lateral = msg.data
 
@@ -145,7 +128,6 @@ class ReactiveController(Node):
     def _state_cb(self, msg):
         self._mode = msg.data
 
-    # ---- Helpers ----
     def _min_range(self, lo, hi):
         if not self._have_scan:
             return float('inf')
@@ -169,7 +151,6 @@ class ReactiveController(Node):
         return steer, v
 
     def _mini_dwa(self, p, steer_max, desired_steer, desired_v, L):
-        """Avaliação de Arcos (Mini-DWA) para desvio de obstáculos."""
         if not self._have_scan:
             return desired_steer, desired_v, False
 
@@ -178,56 +159,52 @@ class ReactiveController(Node):
         half_width = p('dwa_half_width')
 
         arcs = np.linspace(-steer_max, steer_max, num_arcs)
-        
+
         a, r = self._angles, self._ranges
         valid = np.isfinite(r) & (r > 0.05) & (r < lookahead * 1.5)
         if not valid.any():
             return desired_steer, desired_v, False
-            
+
         xs = r[valid] * np.cos(a[valid])
         ys = r[valid] * np.sin(a[valid])
-        
+
         best_steer = None
         min_cost = float('inf')
-        
+
         for steer in arcs:
             collision = False
             if abs(steer) < 1e-3:
-                # Linha reta
                 col_mask = (xs > 0.05) & (xs < lookahead) & (np.abs(ys) < half_width)
                 if col_mask.any():
                     collision = True
             else:
-                # Curva num arco
                 R = L / math.tan(steer)
                 dists_to_center = np.sqrt(xs**2 + (ys - R)**2)
                 path_err = np.abs(dists_to_center - abs(R))
-                
+
                 if R > 0:
                     angles_c = np.arctan2(xs, R - ys)
                 else:
                     angles_c = np.arctan2(xs, ys - R)
-                    
+
                 arc_dist = np.abs(R * angles_c)
                 col_mask = (path_err < half_width) & (xs > 0.05) & (arc_dist < lookahead)
                 if col_mask.any():
                     collision = True
-                    
+
             if not collision:
                 cost = abs(steer - desired_steer)
                 if cost < min_cost:
                     min_cost = cost
                     best_steer = steer
-                    
+
         if best_steer is not None:
             diff = abs(best_steer - desired_steer)
             if diff > 0.05:
-                # O DWA forçou desvio -> reduz velocidade
                 v = p('v_min') + (desired_v - p('v_min')) * (1.0 - diff / steer_max)
                 return best_steer, max(p('v_min'), v), True
             return best_steer, desired_v, False
-            
-        # Dead end
+
         return desired_steer, 0.0, True
 
     def _blind(self, p, steer_max):
@@ -249,7 +226,6 @@ class ReactiveController(Node):
         self._steer_prev += max(-step, min(step, target - self._steer_prev))
         return self._steer_prev
 
-    # ---- laço ----
     def _control_loop(self):
         now = self.get_clock().now()
         dt = (now - self._last_t).nanoseconds * 1e-9 if self._last_t else 0.05
@@ -264,13 +240,13 @@ class ReactiveController(Node):
             self._publish_debug(0.0, 0.0, 0.0, 0.0, 'DISABLED')
             return
 
-        p = lambda n: self.get_parameter(n).value
+        def p(n): return self.get_parameter(n).value
         steer_max = p('steer_max')
         L = p('wheelbase')
 
         have_line = not math.isnan(self._lateral)
         one_tape = self._visible_side != 0.0
-        
+
         if have_line or one_tape:
             self._last_line_time = now.nanoseconds * 1e-9
             if self._yaw is not None:
@@ -278,7 +254,6 @@ class ReactiveController(Node):
 
         in_momentum = (now.nanoseconds * 1e-9 - self._last_line_time) < p('blind_momentum_timeout')
 
-        # 1. VISÃO (O Desejo)
         if one_tape:
             self._reset_pid()
             desired_steer, desired_v = self._reacquire(p, steer_max)
@@ -296,16 +271,16 @@ class ReactiveController(Node):
             desired_steer, desired_v = self._blind(p, steer_max)
             base_mode = 'BLIND'
 
-        # 2. LiDAR (O Veto via Mini-DWA)
         if base_mode != 'MOMENTUM':
-            steer_target, v_target, is_dodging = self._mini_dwa(p, steer_max, desired_steer, desired_v, L)
+            steer_target, v_target, is_dodging = self._mini_dwa(
+                p, steer_max, desired_steer, desired_v, L)
             if is_dodging:
                 mode = 'STOP' if v_target == 0.0 else base_mode + '+DWA'
             else:
                 mode = base_mode
-                
-            # Paragem Absoluta por Proximidade frontal pura
-            front = self._min_range(-math.radians(p('safety_fov_deg')) / 2.0, math.radians(p('safety_fov_deg')) / 2.0)
+
+            front = self._min_range(-math.radians(p('safety_fov_deg')) /
+                                    2.0, math.radians(p('safety_fov_deg')) / 2.0)
             if front <= p('hard_stop_range'):
                 v_target = 0.0
                 mode = 'STOP'
@@ -316,7 +291,6 @@ class ReactiveController(Node):
 
         steer_raw = steer_target
 
-        # 3. Rate Limit e Cinemática Final
         steer_out = self._rate_limit(steer_target, p('steer_rate_max'), dt)
         steer_out = max(-steer_max, min(steer_max, steer_out))
 

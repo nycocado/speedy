@@ -1,9 +1,3 @@
-"""Inferência YOLOv8 sobre NCNN (sem torch — só numpy + cv2).
-
-Encapsula o backend para que trocar de modelo seja só trocar os ficheiros .param/.bin
-e os parâmetros. Trocar de NCNN para outro runtime = substituir esta classe mantendo
-o método infer().
-"""
 import cv2
 import ncnn
 import numpy as np
@@ -24,7 +18,7 @@ class YoloNcnn:
         self.input_name = input_name
         self.output_name = output_name
         self.net = ncnn.Net()
-        self.net.opt.use_vulkan_compute = False   # Pi4 não tem GPU Vulkan útil
+        self.net.opt.use_vulkan_compute = False
         self.net.opt.num_threads = int(num_threads)
         if self.net.load_param(param_path) != 0:
             raise RuntimeError(f'Falha ao carregar param: {param_path}')
@@ -56,7 +50,7 @@ class YoloNcnn:
         pred = np.squeeze(np.array(out))
         if pred.ndim != 2:
             return []
-        if pred.shape[0] < pred.shape[1]:     # quero (anchors, 4+nc); 4+nc é a menor dim
+        if pred.shape[0] < pred.shape[1]:
             pred = pred.T
 
         scores_all = pred[:, 4:]
@@ -69,7 +63,6 @@ class YoloNcnn:
         xywh = pred[keep, :4]
         conf = conf[keep]
         cls = cls[keep]
-        # NMSBoxes usa caixas no espaço da rede (320); o unmap p/ a imagem vem depois.
         boxes = np.empty_like(xywh)
         boxes[:, 0] = xywh[:, 0] - xywh[:, 2] * 0.5
         boxes[:, 1] = xywh[:, 1] - xywh[:, 3] * 0.5
